@@ -15,6 +15,19 @@ import { CreateResumeVersionDto, UpdateResumeVersionDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
+class UpdateContentDto {
+  summary?: string;
+  skills?: string[];
+  workExperiences?: any[];
+  projectExperiences?: any[];
+  certificates?: string[];
+  selfEvaluation?: string;
+}
+
+class CopyDto {
+  name?: string;
+}
+
 @ApiTags('resumes')
 @ApiBearerAuth()
 @Controller('resumes')
@@ -55,6 +68,32 @@ export class ResumesController {
     @Body() dto: UpdateResumeVersionDto,
   ) {
     return this.resumesService.update(userId, id, dto);
+  }
+
+  @Put(':id/content')
+  @ApiOperation({ summary: '更新简历内容' })
+  updateContent(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateContentDto,
+  ) {
+    return this.resumesService.updateContent(userId, id, dto);
+  }
+
+  @Post(':id/copy')
+  @ApiOperation({ summary: '复制简历版本' })
+  copy(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() dto?: CopyDto,
+  ) {
+    return this.resumesService.copy(userId, id, dto?.name);
+  }
+
+  @Post(':id/regenerate')
+  @ApiOperation({ summary: '重新生成简历' })
+  regenerate(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.resumesService.regenerate(userId, id);
   }
 
   @Delete(':id')

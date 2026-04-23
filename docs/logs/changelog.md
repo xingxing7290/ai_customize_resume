@@ -58,7 +58,26 @@
 - 完成阶段 0 项目初始化
 - 服务器环境就绪，可以开始开发
 
+---
+
+## [2026-04-24 00:00] 阶段 6-7 完成 - 简历版本管理与发布
+
+### 新增
+- 简历版本复制功能 (`POST /resumes/:id/copy`)
+- 简历重新生成功能 (`POST /resumes/:id/regenerate`)
+- 简历内容更新接口 (`PUT /resumes/:id/content`)
+- 发布模块 (`/publish` 接口)
+- 公开访问接口 (`GET /public/r/:token`)
+- PDF 打印页面 (`GET /pdf/:versionId`, `GET /pdf/public/:token`)
+- 前端简历编辑页面 (`/resumes/:id`)
+- 前端公开简历页面 (`/r/:token`)
+
+### 原因
+- 完成阶段 6 简历版本管理
+- 完成阶段 7 发布与 PDF
+
 ### 影响范围
-- 服务器: 113.44.50.108
-- 数据库: PostgreSQL (localhost:5432)
-- 缓存: Redis (localhost:6379)
+- 简历完整生命周期管理
+- 公开分享功能可用
+
+---

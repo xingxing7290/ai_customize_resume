@@ -22,3 +22,43 @@
 - 项目整体架构确定
 - 技术栈确定
 - 开发顺序确定
+
+---
+
+## [2026-04-23 23:00] 阶段 0 完成 - 项目初始化
+
+### 新增
+- 云服务器环境配置完成 (Ubuntu 24.04.3 LTS)
+- Node.js 20.20.2 安装
+- pnpm 10.33.2 安装
+- PostgreSQL 16 安装并配置
+- Redis 7.0 安装并启动
+- Next.js 15 前端应用 (apps/web)
+- NestJS 后端应用
+- Prisma 数据库包
+- 共享类型包
+
+### 数据库
+- 创建数据库用户: ai_resume
+- 创建数据库: ai_resume
+- 创建 11 张数据表:
+  - users
+  - resume_profiles
+  - education_records
+  - work_experiences
+  - project_experiences
+  - skill_records
+  - certificate_records
+  - job_targets
+  - resume_versions
+  - resume_publish_records
+  - ai_task_logs
+
+### 原因
+- 完成阶段 0 项目初始化
+- 服务器环境就绪，可以开始开发
+
+### 影响范围
+- 服务器: 113.44.50.108
+- 数据库: PostgreSQL (localhost:5432)
+- 缓存: Redis (localhost:6379)

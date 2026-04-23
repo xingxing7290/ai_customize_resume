@@ -24,7 +24,7 @@ export class ResumesController {
 
   @Post()
   @ApiOperation({ summary: '创建简历版本' })
-  create(@CurrentUser('userId') userId: string, @Body() dto: CreateResumeVersionDto) {
+  create(@CurrentUser('id') userId: string, @Body() dto: CreateResumeVersionDto) {
     return this.resumesService.create(userId, dto);
   }
 
@@ -32,7 +32,7 @@ export class ResumesController {
   @ApiOperation({ summary: '获取所有简历版本' })
   @ApiQuery({ name: 'jobTargetId', required: false })
   findAll(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser('id') userId: string,
     @Query('jobTargetId') jobTargetId?: string,
   ) {
     if (jobTargetId) {
@@ -43,14 +43,14 @@ export class ResumesController {
 
   @Get(':id')
   @ApiOperation({ summary: '获取简历版本详情' })
-  findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+  findOne(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.resumesService.findOne(userId, id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: '更新简历版本' })
   update(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateResumeVersionDto,
   ) {
@@ -59,7 +59,7 @@ export class ResumesController {
 
   @Delete(':id')
   @ApiOperation({ summary: '删除简历版本' })
-  remove(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+  remove(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.resumesService.remove(userId, id);
   }
 }

@@ -23,26 +23,26 @@ export class JobsController {
 
   @Post()
   @ApiOperation({ summary: '创建求职目标' })
-  create(@CurrentUser('userId') userId: string, @Body() dto: CreateJobTargetDto) {
+  create(@CurrentUser('id') userId: string, @Body() dto: CreateJobTargetDto) {
     return this.jobsService.create(userId, dto);
   }
 
   @Get()
   @ApiOperation({ summary: '获取所有求职目标' })
-  findAll(@CurrentUser('userId') userId: string) {
+  findAll(@CurrentUser('id') userId: string) {
     return this.jobsService.findAll(userId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: '获取求职目标详情' })
-  findOne(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+  findOne(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.jobsService.findOne(userId, id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: '更新求职目标' })
   update(
-    @CurrentUser('userId') userId: string,
+    @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body() dto: UpdateJobTargetDto,
   ) {
@@ -51,7 +51,7 @@ export class JobsController {
 
   @Delete(':id')
   @ApiOperation({ summary: '删除求职目标' })
-  remove(@CurrentUser('userId') userId: string, @Param('id') id: string) {
+  remove(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.jobsService.remove(userId, id);
   }
 }

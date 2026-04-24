@@ -28,9 +28,18 @@ async function testLogin() {
       }
     });
 
-    page.on('response', response => {
+    page.on('response', async response => {
       if (response.url().includes('/auth/login')) {
         console.log('API 响应:', response.url(), response.status());
+        // 尝试读取响应内容
+        try {
+          const text = await response.text();
+          if (text) {
+            console.log('响应内容:', text.substring(0, 500));
+          }
+        } catch (e) {
+          console.log('无法读取响应:', e.message);
+        }
       }
     });
 
@@ -48,7 +57,7 @@ async function testLogin() {
     console.log('页面标题:', title);
 
     // 检查按钮
-    const buttonInfo = await page.$eval('button[type="submit"]', el => ({
+    const buttonInfo = await page.$eval('button', el => ({
       text: el.textContent,
       disabled: el.disabled,
       type: el.type,
@@ -57,54 +66,40 @@ async function testLogin() {
 
     // 填写表单
     console.log('填写登录表单...');
+    // 先清空再输入
+    await page.$eval('input[name="email"]', el => el.value = '');
+    await page.$eval('input[name="password"]', el => el.value = '');
     await page.type('input[name="email"]', 'test@test.com');
     await page.type('input[name="password"]', 'test123');
 
     // 点击登录按钮
     console.log('点击登录按钮...');
 
-    // 检查 form 的 onSubmit 是否存在
-    const formInfo = await page.$eval('form', form => {
-      return {
-        hasOnSubmit: form.onsubmit !== null,
-        action: form.action,
-        method: form.method,
-      };
-    });
-    console.log('Form 信息:', formInfo);
+    // 直接点击按钮
+    await page.click('button');
+    console.log('按钮已点击');
 
-    // 尝试触发 form submit 事件
-    await page.evaluate(() => {
-      const form = document.querySelector('form');
-      if (form) {
-        // 创建并触发 submit 事件
-        const event = new Event('submit', { bubbles: true, cancelable: true });
-        form.dispatchEvent(event);
-      }
-    });
-
-    await new Promise(r => setTimeout(r, 2000));
-
-    // 等待一下
-    await new Promise(r => setTimeout(r, 1000));
-
-    // 如果还是没有反应，直接在页面中执行 fetch
-    console.log('尝试直接执行 fetch...');
-    const result = await page.evaluate(() => {
-      return fetch('http://113.44.50.108:3001/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@test.com', password: 'test123' }),
-      })
-        .then(res => res.json())
-        .then(data => JSON.stringify(data))
-        .catch(err => 'Error: ' + err.message);
-    });
-    console.log('直接 fetch 结果:', result);
-
-    // 等待响应
+    // 等待响应和可能的导航
     console.log('等待响应...');
-    await new Promise(r => setTimeout(r, 5000));
+
+    // 等待导航或超时
+    try {
+      await Promise.race([
+        page.waitForNavigation({ timeout: 10000 }),
+        new Promise(r => setTimeout(r, 10000))
+      ]);
+    } catch (e) {
+      console.log('导航等待:', e.message);
+    }
+
+    // 检查 localStorage
+    let token = null;
+    try {
+      token = await page.evaluate(() => localStorage.getItem('accessToken'));
+    } catch (e) {
+      console.log('无法读取 localStorage:', e.message);
+    }
+    console.log('localStorage token:', token ? '存在 (长度: ' + token.length + ')' : '不存在');
 
     // 检查页面是否跳转
     const currentUrl = page.url();

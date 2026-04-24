@@ -20,6 +20,7 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -29,6 +30,7 @@ export default function ProfilesPage() {
   });
 
   useEffect(() => {
+    setMounted(true);
     loadProfiles();
   }, []);
 
@@ -40,8 +42,7 @@ export default function ProfilesPage() {
     setLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     if (editingId) {
       await api.profiles.update(editingId, form);
     } else {
@@ -77,7 +78,7 @@ export default function ProfilesPage() {
     loadProfiles();
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -111,7 +112,7 @@ export default function ProfilesPage() {
           <h2 className="text-lg font-semibold text-slate-800 mb-4">
             {editingId ? '编辑档案' : '新建档案'}
           </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">姓名</label>
@@ -172,7 +173,7 @@ export default function ProfilesPage() {
               >
                 取消
               </button>
-              <button type="submit" className="btn-primary">
+              <button type="button" onClick={handleSave} className="btn-primary">
                 {editingId ? '保存' : '创建'}
               </button>
             </div>

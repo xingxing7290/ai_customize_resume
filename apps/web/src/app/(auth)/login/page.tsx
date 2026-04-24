@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function LoginPage() {
   const [message, setMessage] = useState('');
+  const [mounted, setMounted] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
+  const handleLogin = async (email: string, password: string) => {
     setMessage('正在登录...');
 
     try {
@@ -36,11 +36,30 @@ export default function LoginPage() {
     }
   };
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget.closest('form');
+    if (!form) return;
+
+    const email = (form.querySelector('input[name="email"]') as HTMLInputElement)?.value || '';
+    const password = (form.querySelector('input[name="password"]') as HTMLInputElement)?.value || '';
+    handleLogin(email, password);
+  };
+
+  if (!mounted) {
+    return (
+      <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto' }}>
+        <h1 style={{ marginBottom: '30px' }}>登录</h1>
+        <div style={{ textAlign: 'center', padding: '20px' }}>加载中...</div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto' }}>
       <h1 style={{ marginBottom: '30px' }}>登录</h1>
 
-      <form onSubmit={handleSubmit}>
+      <form>
         <div style={{ marginBottom: '15px' }}>
           <label>邮箱</label><br />
           <input
@@ -62,7 +81,8 @@ export default function LoginPage() {
         </div>
 
         <button
-          type="submit"
+          type="button"
+          onClick={handleClick}
           style={{
             width: '100%',
             padding: '12px',

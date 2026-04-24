@@ -62,7 +62,28 @@ async function testLogin() {
 
     // 点击登录按钮
     console.log('点击登录按钮...');
-    await page.click('button[type="submit"]');
+
+    // 检查 form 的 onSubmit 是否存在
+    const formInfo = await page.$eval('form', form => {
+      return {
+        hasOnSubmit: form.onsubmit !== null,
+        action: form.action,
+        method: form.method,
+      };
+    });
+    console.log('Form 信息:', formInfo);
+
+    // 尝试触发 form submit 事件
+    await page.evaluate(() => {
+      const form = document.querySelector('form');
+      if (form) {
+        // 创建并触发 submit 事件
+        const event = new Event('submit', { bubbles: true, cancelable: true });
+        form.dispatchEvent(event);
+      }
+    });
+
+    await new Promise(r => setTimeout(r, 2000));
 
     // 等待一下
     await new Promise(r => setTimeout(r, 1000));

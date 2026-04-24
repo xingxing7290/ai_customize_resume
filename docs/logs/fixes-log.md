@@ -138,3 +138,89 @@ docker run -d --name postgres -e POSTGRES_PASSWORD=your_password -e POSTGRES_DB=
 ## 测试账号
 
 注册新账号后可使用，暂无预设测试账号。
+
+---
+
+## 问题 7: 登录按钮点击无反应
+
+### 日期: 2026-04-24
+
+### 问题描述
+点击登录按钮后没有任何反应，API 请求未发送，页面未跳转。
+
+### 问题原因
+React hydration 失败 - 服务端渲染的 HTML 与客户端 JavaScript 不匹配，导致事件处理器（onSubmit）未正确绑定到 DOM 元素。
+
+### 解决方案
+1. 将 form 的 onSubmit 改为 button 的 onClick 事件
+2. 添加 `mounted` 状态防止服务端渲染不匹配
+3. 按钮 type 从 "submit" 改为 "button"
+4. 使用 useEffect 确保 client-side hydration 完成
+
+### 修改文件
+- `apps/web/src/app/(auth)/login/page.tsx`
+
+### 测试结果
+- ✅ 按钮点击触发 API 请求
+- ✅ API 返回 200 状态码和 accessToken
+- ✅ Token 保存到 localStorage
+- ✅ 页面成功跳转到 /profiles
+
+### 状态
+✅ 已修复
+
+---
+
+## 问题 8: 创建档案无法保存
+
+### 日期: 2026-04-24
+
+### 问题描述
+在 profiles 页面点击"新建档案"填写信息后，点击"创建"按钮无法保存档案。
+
+### 问题原因
+1. API URL 配置错误 - 使用 `localhost:3001` 而服务器上浏览器无法访问 localhost
+2. 同样的 React hydration 问题 - form onSubmit 未正确绑定
+
+### 解决方案
+1. 修改 API_BASE_URL 默认值从 `localhost:3001` 改为 `113.44.50.108:3001`
+2. 将 profiles 页面的 form onSubmit 改为 button onClick
+3. 添加 mounted 状态处理
+
+### 修改文件
+- `apps/web/src/lib/api.ts`
+- `apps/web/src/app/(dashboard)/profiles/page.tsx`
+
+### 状态
+✅ 已修复
+
+---
+
+## 问题 9: 服务器无法连接 GitHub
+
+### 日期: 2026-04-24
+
+### 问题描述
+服务器执行 `git pull` 时无法连接到 GitHub，报错：`Failed to connect to github.com port 443`
+
+### 解决方案
+使用 SSH 直接传输文件到服务器：
+```bash
+ssh root@113.44.50.108 "cat > /path/to/file" < /local/path/to/file
+```
+
+### 状态
+✅ 已解决
+
+---
+
+## 关键发现
+
+### Next.js 16 + Turbopack Hydration 问题
+在 Next.js 16 使用 Turbopack 时，form 的 onSubmit 事件可能无法正确绑定。建议：
+- 使用 button onClick 替代 form onSubmit
+- 添加 mounted 状态确保 client-side rendering
+- 使用 `type="button"` 而不是 `type="submit"`
+
+### API URL 配置
+部署到服务器时，前端 API URL 必须使用服务器的外网地址，不能使用 localhost。

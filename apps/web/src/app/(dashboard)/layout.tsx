@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useState, useEffect } from 'react';
 
 export default function DashboardLayout({
   children,
@@ -11,6 +12,11 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     await api.auth.logout();
@@ -22,6 +28,14 @@ export default function DashboardLayout({
     { href: '/jobs', label: '求职目标', icon: '🎯' },
     { href: '/resumes', label: '简历版本', icon: '📄' },
   ];
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

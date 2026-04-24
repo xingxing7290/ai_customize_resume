@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
+// 强制动态渲染
+export const dynamic = 'force-dynamic';
+
 interface Profile {
   id: string;
   name: string;
@@ -20,7 +23,6 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -30,11 +32,11 @@ export default function ProfilesPage() {
   });
 
   useEffect(() => {
-    setMounted(true);
     loadProfiles();
   }, []);
 
   const loadProfiles = async () => {
+    setLoading(true);
     const result = await api.profiles.list();
     if (result.data) {
       setProfiles(result.data);
@@ -78,13 +80,11 @@ export default function ProfilesPage() {
     loadProfiles();
   };
 
-  if (!mounted || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  const handleNewProfile = () => {
+    setShowForm(true);
+    setEditingId(null);
+    setForm({ name: '', email: '', phone: '', location: '', summary: '' });
+  };
 
   return (
     <div className="space-y-6">
@@ -95,11 +95,8 @@ export default function ProfilesPage() {
           <p className="text-slate-500 mt-1">管理你的个人信息和经历</p>
         </div>
         <button
-          onClick={() => {
-            setShowForm(true);
-            setEditingId(null);
-            setForm({ name: '', email: '', phone: '', location: '', summary: '' });
-          }}
+          type="button"
+          onClick={handleNewProfile}
           className="btn-primary"
         >
           + 新建档案
@@ -112,7 +109,7 @@ export default function ProfilesPage() {
           <h2 className="text-lg font-semibold text-slate-800 mb-4">
             {editingId ? '编辑档案' : '新建档案'}
           </h2>
-          <form className="space-y-4">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">姓名</label>
@@ -177,16 +174,17 @@ export default function ProfilesPage() {
                 {editingId ? '保存' : '创建'}
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 
       {/* 档案列表 */}
-      {profiles.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[200px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      ) : profiles.length === 0 ? (
         <div className="card p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">👤</span>
-          </div>
           <p className="text-slate-600 mb-2">暂无档案</p>
           <p className="text-slate-500 text-sm">点击"新建档案"创建你的第一个个人档案</p>
         </div>
@@ -208,20 +206,21 @@ export default function ProfilesPage() {
                 </div>
               </div>
               <div className="space-y-2 text-sm text-slate-600">
-                <p>📧 {profile.email}</p>
-                {profile.phone && <p>📱 {profile.phone}</p>}
-                {profile.location && <p>📍 {profile.location}</p>}
+                <p>邮箱: {profile.email}</p>
+                {profile.phone && <p>电话: {profile.phone}</p>}
+                {profile.location && <p>地点: {profile.location}</p>}
               </div>
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
                 <Link
                   href={`/profiles/${profile.id}/education`}
                   className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                 >
-                  管理经历 →
+                  管理经历
                 </Link>
                 <div className="flex gap-2">
                   {!profile.isDefault && (
                     <button
+                      type="button"
                       onClick={() => handleSetDefault(profile.id)}
                       className="text-xs text-slate-500 hover:text-slate-700"
                     >
@@ -229,12 +228,14 @@ export default function ProfilesPage() {
                     </button>
                   )}
                   <button
+                    type="button"
                     onClick={() => handleEdit(profile)}
                     className="text-xs text-indigo-600 hover:text-indigo-700"
                   >
                     编辑
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDelete(profile.id)}
                     className="text-xs text-red-500 hover:text-red-700"
                   >

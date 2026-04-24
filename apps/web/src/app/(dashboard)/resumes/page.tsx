@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 
 interface ResumeVersion {
@@ -35,84 +36,93 @@ export default function ResumesPage() {
     }
   };
 
-  const getStatusText = (status: string) => {
-    const statusMap: Record<string, string> = {
-      DRAFT: '草稿',
-      GENERATING: '生成中',
-      GENERATE_FAILED: '生成失败',
-      READY_EDIT: '可编辑',
-      PUBLISHED: '已发布',
-      ARCHIVED: '已归档',
+  const getStatusInfo = (status: string) => {
+    const statusMap: Record<string, { text: string; color: string }> = {
+      DRAFT: { text: '草稿', color: 'bg-slate-100 text-slate-600' },
+      GENERATING: { text: '生成中', color: 'bg-yellow-100 text-yellow-600' },
+      GENERATE_FAILED: { text: '生成失败', color: 'bg-red-100 text-red-600' },
+      READY_EDIT: { text: '可编辑', color: 'bg-blue-100 text-blue-600' },
+      PUBLISHED: { text: '已发布', color: 'bg-emerald-100 text-emerald-600' },
+      ARCHIVED: { text: '已归档', color: 'bg-gray-100 text-gray-500' },
     };
-    return statusMap[status] || status;
-  };
-
-  const getStatusColor = (status: string) => {
-    if (status === 'PUBLISHED') return 'text-green-600 bg-green-100';
-    if (status === 'GENERATE_FAILED') return 'text-red-600 bg-red-100';
-    if (status === 'GENERATING') return 'text-yellow-600 bg-yellow-100';
-    return 'text-gray-600 bg-gray-100';
+    return statusMap[status] || { text: status, color: 'bg-gray-100 text-gray-600' };
   };
 
   if (loading) {
-    return <div className="text-center py-8">加载中...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">简历版本</h1>
+    <div className="space-y-6">
+      {/* 页面标题 */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">简历版本</h1>
+        <p className="text-slate-500 mt-1">管理你的定制简历</p>
       </div>
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {resumes.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            暂无简历版本，请先创建主档案和求职目标
+      {resumes.length === 0 ? (
+        <div className="card p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">📄</span>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {resumes.map((resume) => (
-              <li key={resume.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-900">{resume.name}</span>
-                      <span className={`ml-2 px-2 py-1 text-xs rounded ${getStatusColor(resume.status)}`}>
-                        {getStatusText(resume.status)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      档案: {resume.profile?.name || '未知'}
-                    </div>
-                    {resume.jobTarget && (
-                      <div className="text-sm text-gray-500">
-                        目标: {resume.jobTarget.parsedJobTitle || '未知职位'}
-                        {resume.jobTarget.parsedCompanyName && ` @ ${resume.jobTarget.parsedCompanyName}`}
-                      </div>
-                    )}
-                    <div className="text-xs text-gray-400 mt-1">
-                      创建于 {new Date(resume.createdAt).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      className="text-sm text-indigo-600 hover:text-indigo-800"
+          <p className="text-slate-600 mb-2">暂无简历版本</p>
+          <p className="text-slate-500 text-sm">请先创建主档案和求职目标，然后生成定制简历</p>
+          <div className="flex justify-center gap-4 mt-6">
+            <Link href="/profiles" className="btn-secondary">
+              创建档案
+            </Link>
+            <Link href="/jobs" className="btn-primary">
+              添加岗位
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {resumes.map(resume => {
+            const statusInfo = getStatusInfo(resume.status);
+            return (
+              <div key={resume.id} className="card p-6 hover:shadow-lg">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-slate-800">{resume.name}</h3>
+                  <span className={`tag ${statusInfo.color}`}>{statusInfo.text}</span>
+                </div>
+                <div className="space-y-2 text-sm text-slate-600 mb-4">
+                  <p>👤 档案: {resume.profile?.name || '未知'}</p>
+                  {resume.jobTarget && (
+                    <p>
+                      🎯 目标: {resume.jobTarget.parsedJobTitle || '未知职位'}
+                      {resume.jobTarget.parsedCompanyName && ` @ ${resume.jobTarget.parsedCompanyName}`}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <span className="text-xs text-slate-400">
+                    {new Date(resume.createdAt).toLocaleDateString()}
+                  </span>
+                  <div className="flex gap-3">
+                    <Link
+                      href={`/resumes/${resume.id}`}
+                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                     >
-                      查看
-                    </button>
+                      编辑
+                    </Link>
                     <button
                       onClick={() => handleDelete(resume.id)}
-                      className="text-sm text-red-600 hover:text-red-800"
+                      className="text-sm text-red-500 hover:text-red-700"
                     >
                       删除
                     </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

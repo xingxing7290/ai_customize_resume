@@ -1,94 +1,84 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { api } from '@/lib/api';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const handleLogin = async () => {
+    setMessage('正在登录...');
 
-    const result = await api.auth.login({ email, password });
+    try {
+      const response = await fetch('http://localhost:3001/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (result.data) {
-      router.push('/profiles');
-    } else {
-      setError(result.message || '登录失败');
+      const data = await response.json();
+
+      if (data.code === 200 && data.data?.accessToken) {
+        localStorage.setItem('accessToken', data.data.accessToken);
+        setMessage('登录成功！正在跳转...');
+        setTimeout(() => {
+          window.location.href = '/profiles';
+        }, 1000);
+      } else {
+        setMessage('登录失败: ' + (data.message || '未知错误'));
+      }
+    } catch (err) {
+      setMessage('网络错误: ' + String(err));
     }
-
-    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
-            AI简历定制平台
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            登录您的账户
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
-              {error}
-            </div>
-          )}
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                邮箱
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                密码
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {loading ? '登录中...' : '登录'}
-          </button>
-          <div className="text-center">
-            <Link href="/register" className="text-sm text-indigo-600 hover:text-indigo-500">
-              还没有账户？立即注册
-            </Link>
-          </div>
-        </form>
+    <div style={{ padding: '50px', maxWidth: '400px', margin: '0 auto' }}>
+      <h1 style={{ marginBottom: '30px' }}>登录测试</h1>
+
+      <div style={{ marginBottom: '15px' }}>
+        <label>邮箱</label><br />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ width: '100%', padding: '10px', marginTop: '5px' }}
+          placeholder="test@test.com"
+        />
       </div>
+
+      <div style={{ marginBottom: '15px' }}>
+        <label>密码</label><br />
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: '100%', padding: '10px', marginTop: '5px' }}
+          placeholder="test123"
+        />
+      </div>
+
+      <button
+        onClick={handleLogin}
+        style={{
+          width: '100%',
+          padding: '12px',
+          background: '#6366f1',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '16px',
+        }}
+      >
+        登录
+      </button>
+
+      {message && (
+        <div style={{ marginTop: '20px', padding: '10px', background: '#f0f0f0' }}>
+          {message}
+        </div>
+      )}
     </div>
   );
 }

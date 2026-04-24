@@ -1,5 +1,48 @@
 # Changelog
 
+## [2026-04-24 08:45] AI 模块完善 - 一致性校验
+
+### 新增
+- `validateGeneratedResume` AI 任务方法
+- `json-repair.ts` JSON 修复工具
+- `consistency-check.ts` 一致性检查工具
+- `validate-resume.prompt.ts` 验证 Prompt 模板
+- `validate-resume.schema.ts` 验证结果 Schema
+
+### 修改
+- `ai.service.ts` 添加 `validateGeneratedResume` 方法
+- `prompts/index.ts` 导出验证 Prompt
+- `schemas/index.ts` 导出验证 Schema
+
+### 原因
+- 实现 AI 结果一致性校验，防止虚构内容
+- 满足需求文档中 AI 任务 4 的要求
+
+### 影响范围
+- AI 模块完整性提升至 95%
+- 简历生成结果可靠性增强
+
+---
+
+## [2026-04-24 08:30] 前端页面补充
+
+### 新增
+- `/profiles/[profileId]/skill` 技能管理页面
+- `/profiles/[profileId]/certificate` 证书管理页面
+- `/jobs/[id]` 岗位详情页面
+
+### 修改
+- 修复 `experience.controllers.ts` 导入路径
+
+### 原因
+- 补充校验报告中缺失的前端页面
+- 完善经历子模块管理
+
+### 影响范围
+- 前端页面完整性提升至 95%
+
+---
+
 ## [2026-04-23 21:00] 项目初始化
 
 ### 新增

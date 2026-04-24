@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 
 interface Profile {
@@ -77,95 +78,101 @@ export default function ProfilesPage() {
   };
 
   if (loading) {
-    return <div className="text-center py-8">加载中...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">主档案管理</h1>
+    <div className="space-y-6">
+      {/* 页面标题 */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">主档案管理</h1>
+          <p className="text-slate-500 mt-1">管理你的个人信息和经历</p>
+        </div>
         <button
           onClick={() => {
             setShowForm(true);
             setEditingId(null);
             setForm({ name: '', email: '', phone: '', location: '', summary: '' });
           }}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          className="btn-primary"
         >
-          新建档案
+          + 新建档案
         </button>
       </div>
 
+      {/* 新建/编辑表单 */}
       {showForm && (
-        <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-medium mb-4">
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">
             {editingId ? '编辑档案' : '新建档案'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">姓名</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">姓名</label>
                 <input
                   type="text"
                   required
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">邮箱</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">邮箱</label>
                 <input
                   type="email"
                   required
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  onChange={e => setForm({ ...form, email: e.target.value })}
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">电话</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">电话</label>
                 <input
                   type="text"
                   value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  onChange={e => setForm({ ...form, phone: e.target.value })}
+                  className="input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">地点</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">地点</label>
                 <input
                   type="text"
                   value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  onChange={e => setForm({ ...form, location: e.target.value })}
+                  className="input"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">个人简介</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">个人简介</label>
               <textarea
                 value={form.summary}
-                onChange={(e) => setForm({ ...form, summary: e.target.value })}
+                onChange={e => setForm({ ...form, summary: e.target.value })}
                 rows={3}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="input"
               />
             </div>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => {
                   setShowForm(false);
                   setEditingId(null);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700"
+                className="btn-secondary"
               >
                 取消
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md"
-              >
+              <button type="submit" className="btn-primary">
                 {editingId ? '保存' : '创建'}
               </button>
             </div>
@@ -173,58 +180,71 @@ export default function ProfilesPage() {
         </div>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {profiles.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            暂无档案，点击"新建档案"创建
+      {/* 档案列表 */}
+      {profiles.length === 0 ? (
+        <div className="card p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">👤</span>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {profiles.map((profile) => (
-              <li key={profile.id} className="px-6 py-4 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center">
-                    <span className="font-medium text-gray-900">{profile.name}</span>
+          <p className="text-slate-600 mb-2">暂无档案</p>
+          <p className="text-slate-500 text-sm">点击"新建档案"创建你的第一个个人档案</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {profiles.map(profile => (
+            <div key={profile.id} className="card p-6 hover:shadow-lg">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                    <span className="text-indigo-600 font-semibold">{profile.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800">{profile.name}</h3>
                     {profile.isDefault && (
-                      <span className="ml-2 px-2 py-1 text-xs bg-indigo-100 text-indigo-600 rounded">
-                        默认
-                      </span>
+                      <span className="tag tag-primary">默认</span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {profile.email} {profile.phone && `· ${profile.phone}`}
-                  </div>
-                  {profile.location && (
-                    <div className="text-sm text-gray-500">{profile.location}</div>
-                  )}
                 </div>
-                <div className="flex space-x-2">
+              </div>
+              <div className="space-y-2 text-sm text-slate-600">
+                <p>📧 {profile.email}</p>
+                {profile.phone && <p>📱 {profile.phone}</p>}
+                {profile.location && <p>📍 {profile.location}</p>}
+              </div>
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                <Link
+                  href={`/profiles/${profile.id}/education`}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  管理经历 →
+                </Link>
+                <div className="flex gap-2">
                   {!profile.isDefault && (
                     <button
                       onClick={() => handleSetDefault(profile.id)}
-                      className="text-sm text-gray-500 hover:text-gray-700"
+                      className="text-xs text-slate-500 hover:text-slate-700"
                     >
                       设为默认
                     </button>
                   )}
                   <button
                     onClick={() => handleEdit(profile)}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
+                    className="text-xs text-indigo-600 hover:text-indigo-700"
                   >
                     编辑
                   </button>
                   <button
                     onClick={() => handleDelete(profile.id)}
-                    className="text-sm text-red-600 hover:text-red-800"
+                    className="text-xs text-red-500 hover:text-red-700"
                   >
                     删除
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

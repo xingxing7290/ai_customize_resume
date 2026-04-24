@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  avatar        String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  profiles      ResumeProfile[]
+  jobTargets    JobTarget[]
+  resumeVersions ResumeVersion[]
+
+  @@map("users")
+}
+
+model ResumeProfile {
+  id            String   @id @default(uuid())
+  userId        String
+  name          String
+  email         String
+  phone         String?
+  location      String?
+  website       String?
+  github        String?
+  linkedin      String?
+  summary       String?
+  selfEvaluation String?
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  educationRecords     EducationRecord[]
+  workExperiences      WorkExperience[]
+  projectExperiences   ProjectExperience[]
+  skillRecords         SkillRecord[]
+  certificateRecords   CertificateRecord[]
+  resumeVersions       ResumeVersion[]
+
+  @@index([userId])
+  @@map("resume_profiles")
+}
+
+model EducationRecord {
+  id          String   @id @default(uuid())
+  profileId   String
+  school      String
+  degree      String
+  major       String?
+  startDate   String
+  endDate     String?
+  gpa         String?
+  description String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("education_records")
+}
+
+model WorkExperience {
+  id          String   @id @default(uuid())
+  profileId   String
+  company     String
+  title       String
+  location    String?
+  startDate   String
+  endDate     String?
+  isCurrent   Boolean  @default(false)
+  description String?
+  highlights  String?
+  techStack   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("work_experiences")
+}
+
+model ProjectExperience {
+  id          String   @id @default(uuid())
+  profileId   String
+  name        String
+  role        String?
+  startDate   String?
+  endDate     String?
+  description String?
+  highlights  String?
+  techStack   String?
+  link        String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("project_experiences")
+}
+
+model SkillRecord {
+  id        String   @id @default(uuid())
+  profileId String
+  name      String
+  category  String?
+  level     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile   ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("skill_records")
+}
+
+model CertificateRecord {
+  id          String   @id @default(uuid())
+  profileId   String
+  name        String
+  issuer      String?
+  date        String?
+  description String?
+  link        String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  profile     ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("certificate_records")
+}
+
+model JobTarget {
+  id                    String   @id @default(uuid())
+  userId                String
+  sourceUrl             String?
+  rawJdText             String?
+  status                String   @default("INIT")
+  parsedJobTitle        String?
+  parsedCompanyName     String?
+  parsedLocation        String?
+  parsedResponsibilities String?
+  parsedRequirements    String?
+  parsedTechStack       String?
+  parsedSalary          String?
+  parsedBenefits        String?
+  parseError            String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeVersions        ResumeVersion[]
+
+  @@index([userId])
+  @@map("job_targets")
+}
+
+model ResumeVersion {
+  id                      String   @id @default(uuid())
+  userId                  String
+  profileId               String
+  jobTargetId             String?
+  sourceVersionId         String?
+  name                    String
+  status                  String   @default("DRAFT")
+  contentSummary          String?
+  contentSkills           String?
+  contentWorkExperiences  String?
+  contentProjectExperiences String?
+  contentCertificates     String?
+  contentSelfEvaluation   String?
+  aiOptimizationNotes     String?
+  aiGapAnalysis           String?
+  publishedUrl            String?
+  pdfPath                 String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile                 ResumeProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  jobTarget               JobTarget? @relation(fields: [jobTargetId], references: [id], onDelete: SetNull)
+  publishRecords          ResumePublishRecord[]
+
+  @@index([userId])
+  @@index([profileId])
+  @@index([jobTargetId])
+  @@map("resume_versions")
+}
+
+model ResumePublishRecord {
+  id          String   @id @default(uuid())
+  versionId   String
+  publicToken String   @unique
+  isPublic    Boolean  @default(true)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  version     ResumeVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([versionId])
+  @@map("resume_publish_records")
+}
+
+model AITaskLog {
+  id                String   @id @default(uuid())
+  userId            String
+  taskType          String
+  status            String
+  requestPayload    String?
+  responsePayload   String?
+  errorMessage      String?
+  tokenUsed         Int?
+  durationMs        Int?
+  relatedEntityId   String?
+  relatedEntityType String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([taskType])
+  @@map("ai_task_logs")
+}

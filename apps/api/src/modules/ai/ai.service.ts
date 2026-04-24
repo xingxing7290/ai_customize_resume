@@ -5,13 +5,17 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   ParseJobSchema,
   GenerateResumeSchema,
+  ValidateResumeSchema,
 } from './schemas';
 import {
   PARSE_JOB_SYSTEM_PROMPT,
   buildParseJobUserPrompt,
   GENERATE_RESUME_SYSTEM_PROMPT,
   buildGenerateResumeUserPrompt,
+  VALIDATE_RESUME_SYSTEM_PROMPT,
+  buildValidateResumeUserPrompt,
 } from './prompts';
+import { checkConsistency, extractProfileForCheck } from './utils';
 
 @Injectable()
 export class AiService {
@@ -82,6 +86,69 @@ export class AiService {
     }
   }
 
+  async validateGeneratedResume(
+    userId: string,
+    profileData: any,
+    generatedResume: any,
+    jobData: any,
+    resumeVersionId: string,
+  ) {
+    const taskLog = await this.createTaskLog(
+      userId,
+      'VALIDATE_RESUME',
+      resumeVersionId,
+      'ResumeVersion',
+      { profileId: profileData.id },
+    );
+
+    try {
+      // 1. 先进行程序化一致性检查
+      const sourceProfile = extractProfileForCheck(profileData);
+      const programmaticCheck = checkConsistency(sourceProfile, {
+        skills: generatedResume.skills,
+        workExperiences: generatedResume.workExperiences,
+        projectExperiences: generatedResume.projectExperiences,
+        certificates: generatedResume.certificates,
+      });
+
+      // 2. 再进行 AI 辅助检查
+      const aiResult = await this.openAiProvider.generateStructuredJson({
+        systemPrompt: VALIDATE_RESUME_SYSTEM_PROMPT,
+        userPrompt: buildValidateResumeUserPrompt(
+          {
+            skills: sourceProfile.skills,
+            projects: sourceProfile.projects,
+            works: sourceProfile.workExperiences,
+            certificates: sourceProfile.certificates,
+          },
+          generatedResume,
+          jobData,
+        ),
+        schema: ValidateResumeSchema,
+        temperature: 0.1,
+      });
+
+      // 3. 合并结果
+      const finalResult = {
+        isConsistent: programmaticCheck.isConsistent && aiResult.data.isConsistent,
+        issues: [...programmaticCheck.issues, ...aiResult.data.issues],
+        missingKeywords: aiResult.data.missingKeywords,
+        possibleFabrications: [
+          ...programmaticCheck.possibleFabrications,
+          ...aiResult.data.possibleFabrications,
+        ],
+        suggestions: aiResult.data.suggestions,
+        warnings: programmaticCheck.warnings,
+      };
+
+      await this.updateTaskLogSuccess(taskLog.id, { data: finalResult, tokenUsed: aiResult.tokenUsed, durationMs: aiResult.durationMs });
+      return finalResult;
+    } catch (error) {
+      await this.updateTaskLogFailed(taskLog.id, error);
+      throw error;
+    }
+  }
+
   private async createTaskLog(
     userId: string,
     taskType: string,
@@ -94,7 +161,7 @@ export class AiService {
         userId,
         taskType: taskType as any,
         status: 'PROCESSING',
-        requestPayload,
+        requestPayload: JSON.stringify(requestPayload),
         relatedEntityId,
         relatedEntityType,
       },
@@ -109,7 +176,7 @@ export class AiService {
       where: { id: logId },
       data: {
         status: 'SUCCESS',
-        responsePayload: result.data,
+        responsePayload: JSON.stringify(result.data),
         tokenUsed: result.tokenUsed,
         durationMs: result.durationMs,
       },

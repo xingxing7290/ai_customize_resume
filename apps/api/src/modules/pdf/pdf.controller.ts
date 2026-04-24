@@ -55,8 +55,8 @@ export class PdfController {
       },
       contentSummary: resume.contentSummary ?? undefined,
       contentSkills: resume.contentSkills,
-      contentWorkExperiences: resume.contentWorkExperiences as any[],
-      contentProjectExperiences: resume.contentProjectExperiences as any[],
+      contentWorkExperiences: resume.contentWorkExperiences,
+      contentProjectExperiences: resume.contentProjectExperiences,
       contentCertificates: resume.contentCertificates,
       contentSelfEvaluation: resume.contentSelfEvaluation ?? undefined,
       jobTarget: resume.jobTarget ? {
@@ -115,8 +115,8 @@ export class PdfController {
       },
       contentSummary: resume.contentSummary ?? undefined,
       contentSkills: resume.contentSkills,
-      contentWorkExperiences: resume.contentWorkExperiences as any[],
-      contentProjectExperiences: resume.contentProjectExperiences as any[],
+      contentWorkExperiences: resume.contentWorkExperiences,
+      contentProjectExperiences: resume.contentProjectExperiences,
       contentCertificates: resume.contentCertificates,
       contentSelfEvaluation: resume.contentSelfEvaluation ?? undefined,
       jobTarget: resume.jobTarget ? {

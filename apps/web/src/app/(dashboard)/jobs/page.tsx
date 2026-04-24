@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 
 interface JobTarget {
@@ -50,135 +51,121 @@ export default function JobsPage() {
     }
   };
 
-  const getStatusText = (status: string) => {
-    const statusMap: Record<string, string> = {
-      INIT: '初始化',
-      FETCHING: '抓取中',
-      FETCH_SUCCESS: '抓取成功',
-      FETCH_FAILED: '抓取失败',
-      PARSING: '解析中',
-      PARSE_SUCCESS: '解析成功',
-      PARSE_FAILED: '解析失败',
+  const getStatusInfo = (status: string) => {
+    const statusMap: Record<string, { text: string; color: string }> = {
+      INIT: { text: '待处理', color: 'bg-slate-100 text-slate-600' },
+      FETCHING: { text: '抓取中', color: 'bg-yellow-100 text-yellow-600' },
+      FETCH_SUCCESS: { text: '抓取成功', color: 'bg-blue-100 text-blue-600' },
+      FETCH_FAILED: { text: '抓取失败', color: 'bg-red-100 text-red-600' },
+      PARSING: { text: '解析中', color: 'bg-yellow-100 text-yellow-600' },
+      PARSE_SUCCESS: { text: '解析成功', color: 'bg-emerald-100 text-emerald-600' },
+      PARSE_FAILED: { text: '解析失败', color: 'bg-red-100 text-red-600' },
     };
-    return statusMap[status] || status;
-  };
-
-  const getStatusColor = (status: string) => {
-    if (status.includes('SUCCESS')) return 'text-green-600 bg-green-100';
-    if (status.includes('FAILED')) return 'text-red-600 bg-red-100';
-    if (status.includes('ING')) return 'text-yellow-600 bg-yellow-100';
-    return 'text-gray-600 bg-gray-100';
+    return statusMap[status] || { text: status, color: 'bg-gray-100 text-gray-600' };
   };
 
   if (loading) {
-    return <div className="text-center py-8">加载中...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">求职目标</h1>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          新建目标
+    <div className="space-y-6">
+      {/* 页面标题 */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">求职目标</h1>
+          <p className="text-slate-500 mt-1">管理你想要申请的岗位</p>
+        </div>
+        <button onClick={() => setShowForm(true)} className="btn-primary">
+          + 新建目标
         </button>
       </div>
 
+      {/* 新建表单 */}
       {showForm && (
-        <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-medium mb-4">新建求职目标</h2>
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">新建求职目标</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">职位来源URL</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">职位来源URL</label>
               <input
                 type="url"
                 value={form.sourceUrl}
-                onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })}
+                onChange={e => setForm({ ...form, sourceUrl: e.target.value })}
                 placeholder="https://..."
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">或直接粘贴JD文本</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">或直接粘贴JD文本</label>
               <textarea
                 value={form.rawJdText}
-                onChange={(e) => setForm({ ...form, rawJdText: e.target.value })}
+                onChange={e => setForm({ ...form, rawJdText: e.target.value })}
                 rows={6}
                 placeholder="粘贴职位描述..."
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="input"
               />
             </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700"
-              >
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
                 取消
               </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md"
-              >
-                创建
+              <button type="submit" className="btn-primary">
+                创建并解析
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {jobs.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            暂无求职目标，点击"新建目标"创建
+      {/* 岗位列表 */}
+      {jobs.length === 0 ? (
+        <div className="card p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🎯</span>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {jobs.map((job) => (
-              <li key={job.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-900">
-                        {job.parsedJobTitle || '待解析'}
-                      </span>
-                      <span className={`ml-2 px-2 py-1 text-xs rounded ${getStatusColor(job.status)}`}>
-                        {getStatusText(job.status)}
-                      </span>
-                    </div>
-                    {job.parsedCompanyName && (
-                      <div className="text-sm text-gray-600">{job.parsedCompanyName}</div>
-                    )}
-                    <div className="text-sm text-gray-500">
-                      {job.parsedLocation || '地点未知'}
-                    </div>
-                    {job.sourceUrl && (
-                      <a
-                        href={job.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-indigo-600 hover:underline"
-                      >
-                        查看原职位
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleDelete(job.id)}
-                      className="text-sm text-red-600 hover:text-red-800"
-                    >
-                      删除
-                    </button>
-                  </div>
+          <p className="text-slate-600 mb-2">暂无求职目标</p>
+          <p className="text-slate-500 text-sm">点击"新建目标"添加你想申请的岗位</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {jobs.map(job => {
+            const statusInfo = getStatusInfo(job.status);
+            return (
+              <Link key={job.id} href={`/jobs/${job.id}`} className="card p-6 hover:shadow-lg cursor-pointer">
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-slate-800">{job.parsedJobTitle || '待解析'}</h3>
+                  <span className={`tag ${statusInfo.color}`}>{statusInfo.text}</span>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                {job.parsedCompanyName && (
+                  <p className="text-slate-600 mb-1">🏢 {job.parsedCompanyName}</p>
+                )}
+                <p className="text-sm text-slate-500 mb-3">
+                  📍 {job.parsedLocation || '地点未知'}
+                </p>
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <span className="text-xs text-slate-400">
+                    {new Date(job.createdAt).toLocaleDateString()}
+                  </span>
+                  <button
+                    onClick={e => {
+                      e.preventDefault();
+                      handleDelete(job.id);
+                    }}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    删除
+                  </button>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,10 +9,10 @@ interface ResumeData {
     summary?: string;
   };
   contentSummary?: string;
-  contentSkills?: string[];
-  contentWorkExperiences?: any[];
-  contentProjectExperiences?: any[];
-  contentCertificates?: string[];
+  contentSkills?: string | null;
+  contentWorkExperiences?: string | null;
+  contentProjectExperiences?: string | null;
+  contentCertificates?: string | null;
   contentSelfEvaluation?: string;
   jobTarget?: {
     parsedJobTitle?: string;
@@ -22,8 +22,34 @@ interface ResumeData {
 
 @Injectable()
 export class PdfService {
+  private parseJsonArray(value: any): any[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+
   generateHtml(resume: ResumeData): string {
     const { profile, contentSummary, contentSkills, contentWorkExperiences, contentProjectExperiences, contentCertificates, contentSelfEvaluation, jobTarget } = resume;
+
+    // Parse JSON string fields from database
+    const parsedSkills = this.parseJsonArray(contentSkills);
+    const parsedWorkExperiences = this.parseJsonArray(contentWorkExperiences).map(exp => ({
+      ...exp,
+      highlights: this.parseJsonArray(exp.highlights),
+    }));
+    const parsedProjectExperiences = this.parseJsonArray(contentProjectExperiences).map(proj => ({
+      ...proj,
+      highlights: this.parseJsonArray(proj.highlights),
+    }));
+    const parsedCertificates = this.parseJsonArray(contentCertificates);
 
     return `
 <!DOCTYPE html>
@@ -192,19 +218,19 @@ export class PdfService {
   </div>
   ` : ''}
 
-  ${contentSkills && contentSkills.length > 0 ? `
+  ${parsedSkills && parsedSkills.length > 0 ? `
   <div class="section">
     <div class="section-title">技能特长</div>
     <div class="skills">
-      ${contentSkills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+      ${parsedSkills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
     </div>
   </div>
   ` : ''}
 
-  ${contentWorkExperiences && contentWorkExperiences.length > 0 ? `
+  ${parsedWorkExperiences && parsedWorkExperiences.length > 0 ? `
   <div class="section">
     <div class="section-title">工作经历</div>
-    ${contentWorkExperiences.map(exp => `
+    ${parsedWorkExperiences.map(exp => `
     <div class="experience-item">
       <div class="experience-header">
         <span class="experience-title">${exp.title || ''}</span>
@@ -215,7 +241,7 @@ export class PdfService {
         ${exp.description || ''}
         ${exp.highlights && exp.highlights.length > 0 ? `
         <ul>
-          ${exp.highlights.map(h => `<li>${h}</li>`).join('')}
+          ${exp.highlights.map((h: string) => `<li>${h}</li>`).join('')}
         </ul>
         ` : ''}
       </div>
@@ -224,10 +250,10 @@ export class PdfService {
   </div>
   ` : ''}
 
-  ${contentProjectExperiences && contentProjectExperiences.length > 0 ? `
+  ${parsedProjectExperiences && parsedProjectExperiences.length > 0 ? `
   <div class="section">
     <div class="section-title">项目经历</div>
-    ${contentProjectExperiences.map(proj => `
+    ${parsedProjectExperiences.map(proj => `
     <div class="project-item">
       <div class="project-name">${proj.name || ''}</div>
       ${proj.role ? `<div class="project-role">${proj.role}</div>` : ''}
@@ -235,7 +261,7 @@ export class PdfService {
         ${proj.description || ''}
         ${proj.highlights && proj.highlights.length > 0 ? `
         <ul>
-          ${proj.highlights.map(h => `<li>${h}</li>`).join('')}
+          ${proj.highlights.map((h: string) => `<li>${h}</li>`).join('')}
         </ul>
         ` : ''}
       </div>
@@ -244,11 +270,11 @@ export class PdfService {
   </div>
   ` : ''}
 
-  ${contentCertificates && contentCertificates.length > 0 ? `
+  ${parsedCertificates && parsedCertificates.length > 0 ? `
   <div class="section">
     <div class="section-title">证书资质</div>
     <div class="certificates">
-      ${contentCertificates.map(cert => `<span class="certificate-item">${cert}</span>`).join('')}
+      ${parsedCertificates.map(cert => `<span class="certificate-item">${cert}</span>`).join('')}
     </div>
   </div>
   ` : ''}

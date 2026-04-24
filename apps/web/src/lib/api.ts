@@ -16,6 +16,14 @@ export async function apiFetch<T>(
     'Content-Type': 'application/json',
   };
 
+  // 添加认证 token
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   const config: RequestInit = {
     ...options,
     headers: {

@@ -42,92 +42,118 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
-            AI简历定制平台
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            创建您的账户
+    <div className="min-h-screen flex">
+      {/* 左侧品牌区域 */}
+      <div className="hidden lg:flex lg:w-1/2 gradient-accent items-center justify-center p-12">
+        <div className="max-w-md text-white">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+              <span className="text-2xl font-bold">AI</span>
+            </div>
+            <span className="text-2xl font-bold">简历定制</span>
+          </div>
+          <h1 className="text-4xl font-bold mb-4">开启求职新体验</h1>
+          <p className="text-lg opacity-90 mb-8">
+            注册账户，享受AI驱动的智能简历定制服务
+          </p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">✓</div>
+              <span>免费创建个人档案</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">✓</div>
+              <span>无限次生成定制简历</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">✓</div>
+              <span>一键分享公开链接</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 右侧注册表单 */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="lg:hidden flex items-center justify-center gap-2 mb-6">
+              <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
+                <span className="text-white font-bold">AI</span>
+              </div>
+              <span className="text-xl font-bold text-slate-800">简历定制</span>
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800">创建账户</h2>
+            <p className="text-slate-500 mt-2">填写以下信息开始使用</p>
+          </div>
+
+          <div className="card p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <div className="p-4 rounded-lg bg-red-50 text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">姓名</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="input"
+                  placeholder="你的姓名"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">邮箱</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="input"
+                  placeholder="your@email.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">密码</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="input"
+                  placeholder="至少6位字符"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">确认密码</label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  className="input"
+                  placeholder="再次输入密码"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary py-3 disabled:opacity-50"
+              >
+                {loading ? '注册中...' : '注册'}
+              </button>
+            </form>
+          </div>
+
+          <p className="text-center text-slate-500 mt-6">
+            已有账户？{' '}
+            <Link href="/login" className="text-indigo-600 font-medium hover:text-indigo-700">
+              立即登录
+            </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
-              {error}
-            </div>
-          )}
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                姓名
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                邮箱
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                密码
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                确认密码
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {loading ? '注册中...' : '注册'}
-          </button>
-          <div className="text-center">
-            <Link href="/login" className="text-sm text-indigo-600 hover:text-indigo-500">
-              已有账户？立即登录
-            </Link>
-          </div>
-        </form>
       </div>
     </div>
   );

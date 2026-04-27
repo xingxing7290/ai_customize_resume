@@ -53,3 +53,38 @@
   - Publish resume
   - Confirm operation logs are written
 
+## Verification Result
+
+- Local Web TypeScript check passed.
+- Server API build passed after `pnpm prisma generate`.
+- Server Web production build passed.
+- Server processes restarted and verified:
+  - Web: `http://113.44.50.108:3000`
+  - API: `http://113.44.50.108:3001`
+- Smoke test completed:
+  - Created test profile: `eb62915e-67ad-449b-a902-87a60808cfcd`
+  - Created job target: `c7038d75-52ef-45ba-903d-f8a0997a2e11`
+  - Reparsed job target with status `PARSE_SUCCESS`
+  - Generated resume version: `57ad43aa-9335-4467-8f32-90775e9f9614`
+  - Resume generation status: `READY_EDIT`
+  - Published public token: `16a40df66622dedc17013bdfba455e30`
+  - Public resume API returned HTTP `200`
+- Confirmed pages respond:
+  - `http://113.44.50.108:3000/jobs`
+  - `http://113.44.50.108:3000/resumes`
+  - `http://113.44.50.108:3000/r/16a40df66622dedc17013bdfba455e30`
+- Confirmed server operation logs include:
+  - `job_created`
+  - `job_parsed`
+  - `resume_created`
+  - `resume_generated`
+  - `resume_published`
+  - `public_resume_viewed`
+
+## Deployment Notes
+
+- Code commit: `9e5e459 feat: add job input to resume generation flow`.
+- Server log paths remain:
+  - `/root/ai_customize_resume/apps/api/logs/app.log`
+  - `/root/ai_customize_resume/apps/api/logs/operations.log`
+  - `/root/ai_customize_resume/apps/api/logs/error.log`

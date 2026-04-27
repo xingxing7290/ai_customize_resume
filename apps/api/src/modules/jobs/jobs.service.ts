@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateJobTargetDto, UpdateJobTargetDto } from './dto';
 import { AiService } from '../ai/ai.service';
+import { FileLoggerService } from '../../common/logger/file-logger.service';
 
 @Injectable()
 export class JobsService {
   constructor(
     private prisma: PrismaService,
     private aiService: AiService,
+    private fileLogger: FileLoggerService,
   ) {}
 
   async create(userId: string, dto: CreateJobTargetDto) {
@@ -18,6 +20,7 @@ export class JobsService {
         status: dto.rawJdText ? 'PARSING' : 'INIT',
       },
     });
+    this.fileLogger.operation('job_created', { userId, jobTargetId: job.id, hasJdText: Boolean(dto.rawJdText) });
 
     if (!dto.rawJdText?.trim()) {
       return job;
@@ -26,7 +29,7 @@ export class JobsService {
     try {
       const parsed = await this.aiService.parseJobDescription(userId, dto.rawJdText, job.id);
 
-      return this.prisma.jobTarget.update({
+      const updated = await this.prisma.jobTarget.update({
         where: { id: job.id },
         data: {
           status: 'PARSE_SUCCESS',
@@ -38,12 +41,17 @@ export class JobsService {
           parsedTechStack: JSON.stringify(parsed.techStack || []),
         },
       });
+      this.fileLogger.operation('job_parsed', { userId, jobTargetId: job.id, status: updated.status });
+      return updated;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.fileLogger.error(message, stack, 'JobsService');
       return this.prisma.jobTarget.update({
         where: { id: job.id },
         data: {
           status: 'PARSE_FAILED',
-          parseError: error.message || String(error),
+          parseError: message,
         },
       });
     }

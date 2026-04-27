@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResumeVersionDto, UpdateResumeVersionDto } from './dto';
 import { AiService } from '../ai/ai.service';
+import { FileLoggerService } from '../../common/logger/file-logger.service';
 
 @Injectable()
 export class ResumesService {
   constructor(
     private prisma: PrismaService,
     private aiService: AiService,
+    private fileLogger: FileLoggerService,
   ) {}
 
   async create(userId: string, dto: CreateResumeVersionDto) {
@@ -48,6 +50,7 @@ export class ResumesService {
         profile: true,
       },
     });
+    this.fileLogger.operation('resume_created', { userId, resumeVersionId: resume.id, jobTargetId: dto.jobTargetId });
 
     if (!jobTarget) {
       return resume;
@@ -61,7 +64,7 @@ export class ResumesService {
         resume.id,
       );
 
-      return this.prisma.resumeVersion.update({
+      const updated = await this.prisma.resumeVersion.update({
         where: { id: resume.id },
         data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT'),
         include: {
@@ -69,7 +72,10 @@ export class ResumesService {
           profile: true,
         },
       });
+      this.fileLogger.operation('resume_generated', { userId, resumeVersionId: resume.id, status: updated.status });
+      return updated;
     } catch {
+      this.fileLogger.error('Resume generation failed', undefined, 'ResumesService');
       return this.prisma.resumeVersion.update({
         where: { id: resume.id },
         data: { status: 'GENERATE_FAILED' },
@@ -205,7 +211,7 @@ export class ResumesService {
         id,
       );
 
-      return this.prisma.resumeVersion.update({
+      const updated = await this.prisma.resumeVersion.update({
         where: { id },
         data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT'),
         include: {
@@ -213,7 +219,12 @@ export class ResumesService {
           profile: true,
         },
       });
+      this.fileLogger.operation('resume_regenerated', { userId, resumeVersionId: id, status: updated.status });
+      return updated;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const stack = error instanceof Error ? error.stack : undefined;
+      this.fileLogger.error(message, stack, 'ResumesService');
       await this.prisma.resumeVersion.update({
         where: { id },
         data: { status: 'GENERATE_FAILED' },
@@ -232,7 +243,7 @@ export class ResumesService {
   }) {
     await this.findOne(userId, id);
 
-    return this.prisma.resumeVersion.update({
+    const updated = await this.prisma.resumeVersion.update({
       where: { id },
       data: {
         contentSummary: content.summary,
@@ -247,6 +258,8 @@ export class ResumesService {
         profile: true,
       },
     });
+    this.fileLogger.operation('resume_content_updated', { userId, resumeVersionId: id });
+    return updated;
   }
 
   private toJobAiInput(jobTarget: any) {

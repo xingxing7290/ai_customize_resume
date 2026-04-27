@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { randomBytes } from 'crypto';
+import { FileLoggerService } from '../../common/logger/file-logger.service';
 
 @Injectable()
 export class PublishService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fileLogger: FileLoggerService,
+  ) {}
 
   async publish(userId: string, versionId: string, isPublic: boolean = true) {
     const resume = await this.prisma.resumeVersion.findUnique({
@@ -45,6 +49,7 @@ export class PublishService {
       data: { status: 'PUBLISHED' },
     });
 
+    this.fileLogger.operation('resume_published', { userId, versionId, publicToken });
     return publishRecord;
   }
 
@@ -79,6 +84,7 @@ export class PublishService {
       data: { status: 'READY_EDIT' },
     });
 
+    this.fileLogger.operation('resume_unpublished', { userId, versionId });
     return { message: 'Resume unpublished' };
   }
 
@@ -112,6 +118,7 @@ export class PublishService {
       data: { viewCount: { increment: 1 } },
     });
 
+    this.fileLogger.operation('public_resume_viewed', { token, versionId: publishRecord.versionId });
     return publishRecord.version;
   }
 

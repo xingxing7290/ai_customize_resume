@@ -2,9 +2,12 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { FileLoggerService } from './common/logger/file-logger.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const fileLogger = app.get(FileLoggerService);
+  app.useLogger(fileLogger);
 
   // Enable CORS
   app.enableCors({
@@ -33,6 +36,7 @@ async function bootstrap() {
 
   const port = process.env.API_PORT || 3001;
   await app.listen(port);
+  fileLogger.operation('api_started', { port });
   console.log(`API is running on: http://localhost:${port}`);
   console.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }

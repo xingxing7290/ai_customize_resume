@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, apiFetch } from '@/lib/api';
 
 interface Education {
   id: string;
@@ -14,196 +14,163 @@ interface Education {
   endDate?: string;
   gpa?: string;
   description?: string;
-  sortOrder: number;
 }
 
-interface Profile {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  location?: string;
-  summary?: string;
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<{ data?: T; message?: string }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include',
-    });
-    const data = await response.json();
-    return { data: response.ok ? data.data || data : undefined, message: data.message };
-  } catch {
-    return { message: 'Network error' };
-  }
-}
+const emptyForm = {
+  school: '',
+  degree: '',
+  major: '',
+  startDate: '',
+  endDate: '',
+  gpa: '',
+  description: '',
+};
 
 export default function EducationPage() {
   const params = useParams();
-  const router = useRouter();
   const profileId = params.profileId as string;
-
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [educations, setEducations] = useState<Education[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [items, setItems] = useState<Education[]>([]);
+  const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    school: '',
-    degree: '',
-    major: '',
-    startDate: '',
-    endDate: '',
-    gpa: '',
-    description: '',
-  });
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     loadData();
   }, [profileId]);
 
   const loadData = async () => {
+    setLoading(true);
     const [profileRes, educationRes] = await Promise.all([
       api.profiles.get(profileId),
       apiFetch<Education[]>(`/profiles/${profileId}/education`),
     ]);
-    if (profileRes.data) setProfile(profileRes.data);
-    if (educationRes.data) setEducations(educationRes.data);
+    if (profileRes.data) setProfileName(profileRes.data.name);
+    if (educationRes.data) setItems(educationRes.data);
     setLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingId) {
-      await apiFetch(`/profiles/${profileId}/education/${editingId}`, {
-        method: 'PUT',
-        body: JSON.stringify(form),
-      });
-    } else {
-      await apiFetch(`/profiles/${profileId}/education`, {
-        method: 'POST',
-        body: JSON.stringify({ ...form, sortOrder: educations.length }),
-      });
-    }
-    setShowForm(false);
+  const resetForm = () => {
+    setForm(emptyForm);
     setEditingId(null);
-    setForm({ school: '', degree: '', major: '', startDate: '', endDate: '', gpa: '', description: '' });
-    loadData();
+    setShowForm(false);
   };
 
-  const handleEdit = (edu: Education) => {
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setMessage('');
+    const payload = { ...form, sortOrder: editingId ? undefined : items.length };
+    const result = editingId
+      ? await apiFetch(`/profiles/${profileId}/education/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) })
+      : await apiFetch(`/profiles/${profileId}/education`, { method: 'POST', body: JSON.stringify(payload) });
+
+    if (result.message) {
+      setMessage(result.message);
+      return;
+    }
+
+    resetForm();
+    await loadData();
+  };
+
+  const handleEdit = (item: Education) => {
     setForm({
-      school: edu.school,
-      degree: edu.degree,
-      major: edu.major || '',
-      startDate: edu.startDate,
-      endDate: edu.endDate || '',
-      gpa: edu.gpa || '',
-      description: edu.description || '',
+      school: item.school,
+      degree: item.degree,
+      major: item.major || '',
+      startDate: item.startDate,
+      endDate: item.endDate || '',
+      gpa: item.gpa || '',
+      description: item.description || '',
     });
-    setEditingId(edu.id);
+    setEditingId(item.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('确定要删除这条教育经历吗？')) {
-      await apiFetch(`/profiles/${profileId}/education/${id}`, { method: 'DELETE' });
-      loadData();
-    }
+    if (!confirm('确定删除这条教育经历吗？')) return;
+    await apiFetch(`/profiles/${profileId}/education/${id}`, { method: 'DELETE' });
+    await loadData();
   };
 
   if (loading) return <div className="text-center py-8">加载中...</div>;
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex items-center gap-2 mb-6">
-        <Link href="/profiles" className="text-gray-500 hover:text-gray-700">档案管理</Link>
-        <span className="text-gray-400">/</span>
-        <Link href={`/profiles/${profileId}`} className="text-gray-500 hover:text-gray-700">{profile?.name}</Link>
-        <span className="text-gray-400">/</span>
-        <span className="text-gray-900 font-medium">教育经历</span>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-sm">
+        <Link href="/profiles" className="text-slate-500 hover:text-slate-700">主档案</Link>
+        <span className="text-slate-400">/</span>
+        <span className="text-slate-700">{profileName}</span>
+        <span className="text-slate-400">/</span>
+        <span className="font-medium text-slate-900">教育经历</span>
       </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">教育经历</h1>
-        <button
-          onClick={() => { setShowForm(true); setEditingId(null); setForm({ school: '', degree: '', major: '', startDate: '', endDate: '', gpa: '', description: '' }); }}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          添加教育经历
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">教育经历</h1>
+        <button type="button" className="btn-primary" onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }}>
+          + 添加教育经历
         </button>
       </div>
 
+      {message && <div className="card px-4 py-3 text-sm text-red-600">{message}</div>}
+
       {showForm && (
-        <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-medium mb-4">{editingId ? '编辑' : '添加'}教育经历</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">学校</label>
-                <input type="text" required value={form.school} onChange={e => setForm({ ...form, school: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">学位</label>
-                <input type="text" required value={form.degree} onChange={e => setForm({ ...form, degree: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">专业</label>
-                <input type="text" value={form.major} onChange={e => setForm({ ...form, major: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">GPA</label>
-                <input type="text" value={form.gpa} onChange={e => setForm({ ...form, gpa: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">开始时间</label>
-                <input type="text" required placeholder="如: 2018-09" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">结束时间</label>
-                <input type="text" placeholder="如: 2022-06" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">描述</label>
-              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700">取消</button>
-              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">{editingId ? '保存' : '添加'}</button>
-            </div>
-          </form>
-        </div>
+        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
+          <h2 className="text-lg font-semibold">{editingId ? '编辑教育经历' : '添加教育经历'}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="学校" value={form.school} onChange={(value) => setForm({ ...form, school: value })} required />
+            <Field label="学历/学位" value={form.degree} onChange={(value) => setForm({ ...form, degree: value })} required />
+            <Field label="专业" value={form.major} onChange={(value) => setForm({ ...form, major: value })} />
+            <Field label="GPA" value={form.gpa} onChange={(value) => setForm({ ...form, gpa: value })} />
+            <Field label="开始时间" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} required placeholder="2018-09" />
+            <Field label="结束时间" value={form.endDate} onChange={(value) => setForm({ ...form, endDate: value })} placeholder="2022-06" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">补充描述</label>
+            <textarea className="input" rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+          </div>
+          <div className="flex justify-end gap-3">
+            <button type="button" className="btn-secondary" onClick={resetForm}>取消</button>
+            <button type="submit" className="btn-primary">{editingId ? '保存' : '添加'}</button>
+          </div>
+        </form>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {educations.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">暂无教育经历</div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {educations.map(edu => (
-              <li key={edu.id} className="px-6 py-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">{edu.school}</p>
-                  <p className="text-sm text-gray-600">{edu.degree} {edu.major && `· ${edu.major}`}</p>
-                  <p className="text-sm text-gray-500">{edu.startDate} - {edu.endDate || '至今'}</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button onClick={() => handleEdit(edu)} className="text-sm text-indigo-600 hover:text-indigo-800">编辑</button>
-                  <button onClick={() => handleDelete(edu.id)} className="text-sm text-red-600 hover:text-red-800">删除</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="card divide-y divide-slate-100">
+        {items.length === 0 ? (
+          <div className="p-10 text-center text-slate-500">暂无教育经历</div>
+        ) : items.map((item) => (
+          <div key={item.id} className="p-5 flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-slate-900">{item.school}</h3>
+              <p className="text-sm text-slate-600">{item.degree}{item.major ? ` / ${item.major}` : ''}</p>
+              <p className="text-sm text-slate-500">{item.startDate} - {item.endDate || '至今'}</p>
+              {item.description && <p className="mt-2 text-sm text-slate-600">{item.description}</p>}
+            </div>
+            <div className="flex gap-3 text-sm">
+              <button type="button" onClick={() => handleEdit(item)} className="text-indigo-600">编辑</button>
+              <button type="button" onClick={() => handleDelete(item.id)} className="text-red-600">删除</button>
+            </div>
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, required, placeholder }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <input required={required} placeholder={placeholder} className="input" value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

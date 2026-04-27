@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,6 +13,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import config from './config';
+import { RequestLoggingMiddleware } from './common/logger/request-logging.middleware';
+import { LoggerModule } from './common/logger/logger.module';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import config from './config';
       isGlobal: true,
       load: [config],
     }),
+    LoggerModule,
     PrismaModule,
     AuthModule,
     ProfilesModule,
@@ -44,4 +47,8 @@ import config from './config';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*');
+  }
+}

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
 
 interface ProjectExperience {
   id: string;
@@ -11,143 +12,159 @@ interface ProjectExperience {
   startDate?: string;
   endDate?: string;
   description?: string;
-  highlights: string[];
-  techStack: string[];
+  highlights?: string;
+  techStack?: string;
   link?: string;
-  sortOrder: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<{ data?: T; message?: string }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options, headers: { 'Content-Type': 'application/json', ...options.headers }, credentials: 'include',
-    });
-    const data = await response.json();
-    return { data: response.ok ? data.data || data : undefined, message: data.message };
-  } catch { return { message: 'Network error' }; }
-}
+const emptyForm = {
+  name: '',
+  role: '',
+  startDate: '',
+  endDate: '',
+  description: '',
+  highlights: '',
+  techStack: '',
+  link: '',
+};
 
 export default function ProjectPage() {
   const params = useParams();
   const profileId = params.profileId as string;
-  const [projects, setProjects] = useState<ProjectExperience[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [items, setItems] = useState<ProjectExperience[]>([]);
+  const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: '', role: '', startDate: '', endDate: '', description: '', highlights: '', techStack: '', link: '' });
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
 
   useEffect(() => { loadData(); }, [profileId]);
+
   const loadData = async () => {
+    setLoading(true);
     const res = await apiFetch<ProjectExperience[]>(`/profiles/${profileId}/project`);
-    if (res.data) setProjects(res.data);
+    if (res.data) setItems(res.data);
     setLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const data = { ...form, highlights: form.highlights.split('\n').filter(h => h.trim()), techStack: form.techStack.split(',').map(t => t.trim()).filter(t => t) };
-    if (editingId) {
-      await apiFetch(`/profiles/${profileId}/project/${editingId}`, { method: 'PUT', body: JSON.stringify(data) });
-    } else {
-      await apiFetch(`/profiles/${profileId}/project`, { method: 'POST', body: JSON.stringify({ ...data, sortOrder: projects.length }) });
-    }
-    setShowForm(false); setEditingId(null);
-    setForm({ name: '', role: '', startDate: '', endDate: '', description: '', highlights: '', techStack: '', link: '' });
-    loadData();
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setShowForm(false);
   };
 
-  const handleEdit = (proj: ProjectExperience) => {
-    setForm({ name: proj.name, role: proj.role || '', startDate: proj.startDate || '', endDate: proj.endDate || '', description: proj.description || '', highlights: proj.highlights.join('\n'), techStack: proj.techStack.join(', '), link: proj.link || '' });
-    setEditingId(proj.id); setShowForm(true);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setMessage('');
+    const payload = { ...form, sortOrder: editingId ? undefined : items.length };
+    const result = editingId
+      ? await apiFetch(`/profiles/${profileId}/project/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) })
+      : await apiFetch(`/profiles/${profileId}/project`, { method: 'POST', body: JSON.stringify(payload) });
+    if (result.message) {
+      setMessage(result.message);
+      return;
+    }
+    resetForm();
+    await loadData();
+  };
+
+  const handleEdit = (item: ProjectExperience) => {
+    setForm({
+      name: item.name,
+      role: item.role || '',
+      startDate: item.startDate || '',
+      endDate: item.endDate || '',
+      description: item.description || '',
+      highlights: item.highlights || '',
+      techStack: item.techStack || '',
+      link: item.link || '',
+    });
+    setEditingId(item.id);
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('确定要删除这个项目经历吗？')) { await apiFetch(`/profiles/${profileId}/project/${id}`, { method: 'DELETE' }); loadData(); }
+    if (!confirm('确定删除这条项目经历吗？')) return;
+    await apiFetch(`/profiles/${profileId}/project/${id}`, { method: 'DELETE' });
+    await loadData();
   };
 
   if (loading) return <div className="text-center py-8">加载中...</div>;
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex items-center gap-2 mb-6">
-        <Link href="/profiles" className="text-gray-500 hover:text-gray-700">档案管理</Link>
-        <span className="text-gray-400">/</span>
-        <span className="text-gray-900 font-medium">项目经历</span>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-sm">
+        <Link href="/profiles" className="text-slate-500 hover:text-slate-700">主档案</Link>
+        <span className="text-slate-400">/</span>
+        <span className="font-medium text-slate-900">项目经历</span>
       </div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">项目经历</h1>
-        <button onClick={() => { setShowForm(true); setEditingId(null); }} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">添加项目经历</button>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">项目经历</h1>
+        <button type="button" onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }} className="btn-primary">
+          + 添加项目经历
+        </button>
       </div>
+
+      {message && <div className="card px-4 py-3 text-sm text-red-600">{message}</div>}
 
       {showForm && (
-        <div className="mb-6 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-medium mb-4">{editingId ? '编辑' : '添加'}项目经历</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">项目名称</label>
-                <input type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">角色</label>
-                <input type="text" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">开始时间</label>
-                <input type="text" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">结束时间</label>
-                <input type="text" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">项目链接</label>
-              <input type="text" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">项目描述</label>
-              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">主要贡献 (每行一条)</label>
-              <textarea value={form.highlights} onChange={e => setForm({ ...form, highlights: e.target.value })} rows={3} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">技术栈 (逗号分隔)</label>
-              <input type="text" value={form.techStack} onChange={e => setForm({ ...form, techStack: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700">取消</button>
-              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">{editingId ? '保存' : '添加'}</button>
-            </div>
-          </form>
-        </div>
+        <form onSubmit={handleSubmit} className="card p-6 space-y-4">
+          <h2 className="text-lg font-semibold">{editingId ? '编辑项目经历' : '添加项目经历'}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="项目名称" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required />
+            <Field label="角色" value={form.role} onChange={(value) => setForm({ ...form, role: value })} />
+            <Field label="开始时间" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} placeholder="2023-01" />
+            <Field label="结束时间" value={form.endDate} onChange={(value) => setForm({ ...form, endDate: value })} placeholder="2023-12" />
+          </div>
+          <Field label="项目链接" value={form.link} onChange={(value) => setForm({ ...form, link: value })} />
+          <TextArea label="项目描述" value={form.description} onChange={(value) => setForm({ ...form, description: value })} />
+          <TextArea label="主要贡献（每行一条）" value={form.highlights} onChange={(value) => setForm({ ...form, highlights: value })} />
+          <Field label="技术栈（逗号分隔）" value={form.techStack} onChange={(value) => setForm({ ...form, techStack: value })} placeholder="Next.js, NestJS, Prisma" />
+          <div className="flex justify-end gap-3">
+            <button type="button" className="btn-secondary" onClick={resetForm}>取消</button>
+            <button type="submit" className="btn-primary">{editingId ? '保存' : '添加'}</button>
+          </div>
+        </form>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        {projects.length === 0 ? <div className="text-center py-8 text-gray-500">暂无项目经历</div> : (
-          <ul className="divide-y divide-gray-200">
-            {projects.map(proj => (
-              <li key={proj.id} className="px-6 py-4">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{proj.name}</p>
-                    {proj.role && <p className="text-sm text-gray-600">{proj.role}</p>}
-                    {proj.techStack.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{proj.techStack.map(t => <span key={t} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{t}</span>)}</div>}
-                  </div>
-                  <div className="flex space-x-2">
-                    <button onClick={() => handleEdit(proj)} className="text-sm text-indigo-600 hover:text-indigo-800">编辑</button>
-                    <button onClick={() => handleDelete(proj.id)} className="text-sm text-red-600 hover:text-red-800">删除</button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="card divide-y divide-slate-100">
+        {items.length === 0 ? (
+          <div className="p-10 text-center text-slate-500">暂无项目经历</div>
+        ) : items.map((item) => (
+          <div key={item.id} className="p-5 flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-slate-900">{item.name}</h3>
+              {item.role && <p className="text-sm text-slate-600">{item.role}</p>}
+              <p className="text-sm text-slate-500">{[item.startDate, item.endDate].filter(Boolean).join(' - ')}</p>
+              {item.techStack && <p className="mt-2 text-xs text-slate-500">{item.techStack}</p>}
+            </div>
+            <div className="flex gap-3 text-sm">
+              <button type="button" onClick={() => handleEdit(item)} className="text-indigo-600">编辑</button>
+              <button type="button" onClick={() => handleDelete(item.id)} className="text-red-600">删除</button>
+            </div>
+          </div>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, required, placeholder }: {
+  label: string; value: string; onChange: (value: string) => void; required?: boolean; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <input required={required} placeholder={placeholder} className="input" value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
+function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <textarea className="input" rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

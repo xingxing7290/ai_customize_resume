@@ -38,3 +38,22 @@
 - Verify server routes and smoke-test education/work/project creation through the API.
 - Confirm server log files are created and receive entries.
 
+## Verification Result
+
+- Local Web TypeScript check passed.
+- Server API build passed after `pnpm prisma generate`.
+- Server Web production build passed.
+- Server processes restarted and listened on:
+  - Web: `http://113.44.50.108:3000`
+  - API: `http://113.44.50.108:3001`
+- Smoke test created a test user and profile, then created and read:
+  - Education records: `1`
+  - Work records: `1`
+  - Project records: `1`
+- Confirmed operation and error logs are written under `/root/ai_customize_resume/apps/api/logs`.
+
+## Deployment Notes
+
+- Commit deployed first: `3da66da fix: add operation logs and experience entry points`.
+- During process restart, an old API process initially held port `3001`; this was captured in `error.log` as `EADDRINUSE`.
+- The API and Web were then restarted with new processes and verified through HTTP.

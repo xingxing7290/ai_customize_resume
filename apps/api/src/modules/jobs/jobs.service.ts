@@ -14,14 +14,17 @@ export class JobsService {
 
   async create(userId: string, dto: CreateJobTargetDto) {
     const jdText = await this.resolveJdText(userId, dto.sourceUrl, dto.rawJdText);
+    const validation = this.validateJdText(jdText);
     const job = await this.prisma.jobTarget.create({
       data: {
         userId,
         ...dto,
         rawJdText: jdText,
-        status: jdText ? 'PARSING' : 'INIT',
+        status: validation.ok ? 'PARSING' : 'PARSE_FAILED',
+        parseError: validation.ok ? null : validation.reason,
       },
     });
+
     this.fileLogger.operation('job_created', {
       userId,
       jobTargetId: job.id,
@@ -29,11 +32,16 @@ export class JobsService {
       hasJdText: Boolean(jdText),
     });
 
-    if (!jdText?.trim()) {
+    if (!validation.ok) {
+      this.fileLogger.operation('job_parse_skipped', {
+        userId,
+        jobTargetId: job.id,
+        reason: validation.reason,
+      });
       return job;
     }
 
-    return this.parseAndUpdate(userId, job.id, jdText);
+    return this.parseAndUpdate(userId, job.id, jdText!);
   }
 
   async findAll(userId: string) {
@@ -79,13 +87,29 @@ export class JobsService {
   async reparse(userId: string, id: string) {
     const job = await this.findOne(userId, id);
     const jdText = await this.resolveJdText(userId, job.sourceUrl, job.rawJdText);
+    const validation = this.validateJdText(jdText);
 
-    if (!jdText?.trim()) {
+    if (!validation.ok) {
+      this.fileLogger.operation('job_parse_skipped', {
+        userId,
+        jobTargetId: id,
+        reason: validation.reason,
+      });
+
       return this.prisma.jobTarget.update({
         where: { id },
         data: {
+          rawJdText: jdText,
           status: 'PARSE_FAILED',
-          parseError: 'No job description text or readable URL content was provided.',
+          parsedJobTitle: null,
+          parsedCompanyName: null,
+          parsedLocation: null,
+          parsedResponsibilities: null,
+          parsedRequirements: null,
+          parsedTechStack: null,
+          parsedSalary: null,
+          parsedBenefits: null,
+          parseError: validation.reason,
         },
       });
     }
@@ -99,7 +123,7 @@ export class JobsService {
       },
     });
 
-    return this.parseAndUpdate(userId, id, jdText);
+    return this.parseAndUpdate(userId, id, jdText!);
   }
 
   private async parseAndUpdate(userId: string, jobTargetId: string, jdText: string) {
@@ -165,12 +189,65 @@ export class JobsService {
         textLength: text.length,
       });
 
-      return text || `岗位链接：${sourceUrl}`;
+      return text || `Job URL: ${sourceUrl}`;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.fileLogger.operation('job_url_fetch_failed', { userId, sourceUrl, message });
-      return `岗位链接：${sourceUrl}\n\n系统未能自动抓取该页面，请在页面中补充粘贴岗位 JD 文本后重新解析。`;
+      return `Job URL: ${sourceUrl}\n\nThe system could not fetch readable job content from this page. Paste the full JD text and reparse.`;
     }
+  }
+
+  private validateJdText(jdText?: string | null): { ok: boolean; reason?: string } {
+    const text = jdText?.trim();
+    if (!text) {
+      return { ok: false, reason: 'No job description text or readable URL content was provided.' };
+    }
+
+    const compact = text.replace(/\s+/g, '');
+    const lower = text.toLowerCase();
+    const blockerPatterns = [
+      '加载中',
+      '请稍候',
+      '安全校验',
+      'security_check',
+      '验证码',
+      '登录后查看',
+      'access denied',
+      'forbidden',
+      'captcha',
+      'enable javascript',
+      'just a moment',
+    ];
+    const jobSignals = [
+      '岗位职责',
+      '职位描述',
+      '任职要求',
+      '工作职责',
+      'responsibilities',
+      'requirements',
+      'qualifications',
+      '薪资',
+      '经验',
+      '学历',
+    ];
+    const hasBlockerText = blockerPatterns.some((pattern) => lower.includes(pattern.toLowerCase()));
+    const hasJobSignals = jobSignals.some((signal) => lower.includes(signal.toLowerCase()));
+
+    if (compact.length < 80) {
+      return {
+        ok: false,
+        reason: 'Fetched content is too short to parse as a job description. Paste the full JD text and reparse.',
+      };
+    }
+
+    if (hasBlockerText && !hasJobSignals) {
+      return {
+        ok: false,
+        reason: 'The job URL returned a loading/security-check page instead of real JD content. Paste the full JD text and reparse.',
+      };
+    }
+
+    return { ok: true };
   }
 
   private htmlToText(html: string) {

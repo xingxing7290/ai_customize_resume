@@ -52,3 +52,4 @@
   - Try to extract the first visible job card from common BOSS selectors.
   - If no job card is found and the page is only generic navigation/search text, reject it instead of passing it to AI parsing.
 - This keeps direct URL parsing useful where a visible card/detail is available, while avoiding parsing site navigation as a job.
+- Follow-up verification showed that BOSS can render category/navigation text containing generic words such as experience, so generic navigation rejection now runs before broad job-signal acceptance unless a concrete job card was extracted.

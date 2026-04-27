@@ -322,33 +322,33 @@ export class JobsService {
       '经验',
       '学历',
     ];
-    const hasBlockerText = blockerPatterns.some((pattern) => lower.includes(pattern.toLowerCase()));
-    const hasJobSignals = jobSignals.some((signal) => lower.includes(signal.toLowerCase()));
-
-    if (compact.length < 80) {
-      return {
-        ok: false,
-        reason: 'Fetched content is too short to parse as a job description. Paste the full JD text and reparse.',
-      };
-    }
-
-    if (hasBlockerText && !hasJobSignals) {
-      return {
-        ok: false,
-        reason: 'The job URL returned a loading/security-check page instead of real JD content. Paste the full JD text and reparse.',
-      };
-    }
-
+	    const hasBlockerText = blockerPatterns.some((pattern) => lower.includes(pattern.toLowerCase()));
+	    const hasJobSignals = jobSignals.some((signal) => lower.includes(signal.toLowerCase()));
+	    const hasExtractedJobCard = lower.includes('selected visible job card');
 	    const looksLikeGenericNavigation =
 	      lower.includes('热门职位') &&
 	      lower.includes('首页') &&
 	      lower.includes('登录/注册') &&
-	      !hasJobSignals;
+	      !hasExtractedJobCard;
+
+	    if (compact.length < 80) {
+	      return {
+	        ok: false,
+	        reason: 'Fetched content is too short to parse as a job description. Paste the full JD text and reparse.',
+	      };
+	    }
 
 	    if (looksLikeGenericNavigation) {
 	      return {
 	        ok: false,
 	        reason: 'The URL rendered a generic job search/navigation page, not a specific job. Open a concrete job detail URL or paste the JD text.',
+	      };
+	    }
+
+	    if (hasBlockerText && !hasJobSignals) {
+	      return {
+	        ok: false,
+	        reason: 'The job URL returned a loading/security-check page instead of real JD content. Paste the full JD text and reparse.',
 	      };
 	    }
 

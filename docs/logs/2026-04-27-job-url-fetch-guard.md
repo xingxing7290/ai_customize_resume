@@ -29,3 +29,26 @@
 - Confirm the job is not parsed as a real job and the log records `job_parse_skipped`.
 - Confirm normal pasted JD text still parses and generates resumes.
 
+## Verification Result
+
+- Local Web TypeScript check passed.
+- Server API build passed after `pnpm prisma generate`.
+- Server Web build passed.
+- Server API restarted and listened on `3001`; Web remained available on `3000`.
+- Tested the reported BOSS Zhipin URL:
+  - Job id: `1cae1140-e3ce-46c5-929d-7e1fc780f9c4`
+  - Status: `PARSE_FAILED`
+  - Parsed title: `null`
+  - Raw fetched text started with `BOSS直聘 加载中，请稍候`
+  - Error: `Fetched content is too short to parse as a job description. Paste the full JD text and reparse.`
+- Tested a manually pasted embedded engineer JD:
+  - Job id: `02a2bc49-a0d8-4af5-a551-a7c0f261e6e8`
+  - Status: `PARSE_SUCCESS`
+- Confirmed the new behavior prevents loading/security pages from being used as real JD content.
+
+## Deployment Notes
+
+- GitHub commit: `8227a20 fix: guard job parsing against loading pages`.
+- Server `git pull` over HTTPS failed twice with `GnuTLS recv error (-110)`.
+- To avoid delaying the production fix, changed files were copied to the server over SSH and built there.
+- Server should be able to reconcile with GitHub later by retrying `git pull origin main` when the HTTPS connection is stable.

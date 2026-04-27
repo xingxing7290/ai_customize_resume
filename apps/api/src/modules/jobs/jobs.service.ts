@@ -253,8 +253,8 @@ export class JobsService {
 
       return normalized;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.fileLogger.operation('job_url_render_failed', { userId, sourceUrl, message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.fileLogger.operation('job_url_render_failed', { userId, sourceUrl, errorMessage });
       return undefined;
     } finally {
       if (browser) {

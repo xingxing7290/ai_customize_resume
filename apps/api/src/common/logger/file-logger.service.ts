@@ -44,8 +44,8 @@ export class FileLoggerService implements LoggerService {
       timestamp: new Date().toISOString(),
       level,
       context,
-      message: typeof message === 'string' ? message : JSON.stringify(message),
       ...extra,
+      message: typeof message === 'string' ? message : JSON.stringify(message),
     };
     const line = `${JSON.stringify(entry)}\n`;
     appendFileSync(join(this.logDir, 'app.log'), line, 'utf8');

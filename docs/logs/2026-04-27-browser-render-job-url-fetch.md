@@ -31,3 +31,15 @@
 - Confirm operation logs show whether browser rendering succeeded or failed.
 - Confirm pasted JD still parses successfully.
 
+## Runtime Finding
+
+- The first server test triggered browser-render fallback, but Chromium failed to start because the server lacked native browser libraries.
+- Observed missing dependency:
+  - `libatk-1.0.so.0`
+- The operation log also exposed that payload fields named `message` could overwrite the operation action name.
+
+## Follow-up Changes
+
+- Updated the file logger so operation action names are not overwritten by payload fields.
+- Updated browser render failure payload to use `errorMessage`.
+- Server needs Chromium native dependencies installed before Puppeteer can render dynamic job pages.

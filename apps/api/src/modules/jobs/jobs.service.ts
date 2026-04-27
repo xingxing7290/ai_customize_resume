@@ -189,11 +189,77 @@ export class JobsService {
         textLength: text.length,
       });
 
-      return text || `Job URL: ${sourceUrl}`;
+      if (this.validateJdText(text).ok) {
+        return text;
+      }
+
+      this.fileLogger.operation('job_url_fetch_unusable', {
+        userId,
+        sourceUrl,
+        textLength: text.length,
+      });
+
+      const renderedText = await this.renderUrlToText(userId, sourceUrl);
+      return renderedText || text || `Job URL: ${sourceUrl}`;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.fileLogger.operation('job_url_fetch_failed', { userId, sourceUrl, message });
-      return `Job URL: ${sourceUrl}\n\nThe system could not fetch readable job content from this page. Paste the full JD text and reparse.`;
+      const renderedText = await this.renderUrlToText(userId, sourceUrl);
+      return renderedText || `Job URL: ${sourceUrl}\n\nThe system could not fetch readable job content from this page. Paste the full JD text and reparse.`;
+    }
+  }
+
+  private async renderUrlToText(userId: string, sourceUrl: string) {
+    let browser: any;
+
+    try {
+      const puppeteer = await import('puppeteer');
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled',
+        ],
+      });
+
+      const page = await browser.newPage();
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      );
+      await page.setViewport({ width: 1366, height: 900 });
+      await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+
+      try {
+        await page.waitForFunction(
+          () => {
+            const text = document.body?.innerText || '';
+            return text.replace(/\s+/g, '').length > 500;
+          },
+          { timeout: 12000 },
+        );
+      } catch {
+        // Some job sites keep network or scripts pending; use the best rendered text we have.
+      }
+
+      const text = await page.evaluate(() => document.body?.innerText || '');
+      const normalized = text.replace(/\s+/g, ' ').trim().slice(0, 20000);
+      this.fileLogger.operation('job_url_rendered', {
+        userId,
+        sourceUrl,
+        textLength: normalized.length,
+      });
+
+      return normalized;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.fileLogger.operation('job_url_render_failed', { userId, sourceUrl, message });
+      return undefined;
+    } finally {
+      if (browser) {
+        await browser.close().catch(() => undefined);
+      }
     }
   }
 

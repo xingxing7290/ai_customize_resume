@@ -22,25 +22,25 @@ export class JobsController {
   constructor(private jobsService: JobsService) {}
 
   @Post()
-  @ApiOperation({ summary: '创建求职目标' })
+  @ApiOperation({ summary: 'Create a job target from URL or JD text' })
   create(@CurrentUser('id') userId: string, @Body() dto: CreateJobTargetDto) {
     return this.jobsService.create(userId, dto);
   }
 
   @Get()
-  @ApiOperation({ summary: '获取所有求职目标' })
+  @ApiOperation({ summary: 'List job targets' })
   findAll(@CurrentUser('id') userId: string) {
     return this.jobsService.findAll(userId);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '获取求职目标详情' })
+  @ApiOperation({ summary: 'Get job target detail' })
   findOne(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.jobsService.findOne(userId, id);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: '更新求职目标' })
+  @ApiOperation({ summary: 'Update job target' })
   update(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
@@ -49,8 +49,14 @@ export class JobsController {
     return this.jobsService.update(userId, id, dto);
   }
 
+  @Post(':id/reparse')
+  @ApiOperation({ summary: 'Reparse a job target' })
+  reparse(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.jobsService.reparse(userId, id);
+  }
+
   @Delete(':id')
-  @ApiOperation({ summary: '删除求职目标' })
+  @ApiOperation({ summary: 'Delete job target' })
   remove(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.jobsService.remove(userId, id);
   }

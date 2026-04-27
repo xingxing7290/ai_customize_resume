@@ -38,7 +38,7 @@ export default function PublicResumePage() {
   }, [token]);
 
   const loadResume = async () => {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
     try {
       const response = await fetch(`${API_BASE_URL}/public/r/${token}`);
       const data = await response.json();
@@ -55,7 +55,7 @@ export default function PublicResumePage() {
   };
 
   const handleDownloadPdf = () => {
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
     window.open(`${API_BASE_URL}/pdf/public/${token}`, '_blank');
   };
 

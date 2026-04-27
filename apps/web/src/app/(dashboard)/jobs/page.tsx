@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
@@ -12,160 +12,189 @@ interface JobTarget {
   parsedJobTitle?: string;
   parsedCompanyName?: string;
   parsedLocation?: string;
+  parsedRequirements?: string[];
+  parsedTechStack?: string[];
+  parseError?: string;
   createdAt: string;
 }
+
+const emptyForm = { sourceUrl: '', rawJdText: '' };
+
+const statusText: Record<string, string> = {
+  INIT: '待处理',
+  FETCHING: '抓取中',
+  FETCH_SUCCESS: '抓取成功',
+  FETCH_FAILED: '抓取失败',
+  PARSING: '解析中',
+  PARSE_SUCCESS: '已解析',
+  PARSE_FAILED: '解析失败',
+};
+
+const statusClass: Record<string, string> = {
+  INIT: 'bg-slate-100 text-slate-600',
+  PARSING: 'bg-amber-100 text-amber-700',
+  PARSE_SUCCESS: 'bg-emerald-100 text-emerald-700',
+  PARSE_FAILED: 'bg-red-100 text-red-700',
+};
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    sourceUrl: '',
-    rawJdText: '',
-  });
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [form, setForm] = useState(emptyForm);
 
-  useEffect(() => {
-    loadJobs();
-  }, []);
+  useEffect(() => { loadJobs(); }, []);
 
   const loadJobs = async () => {
+    setLoading(true);
     const result = await api.jobs.list();
-    if (result.data) {
-      setJobs(result.data);
-    }
+    if (result.data) setJobs(result.data);
     setLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await api.jobs.create(form);
-    setShowForm(false);
-    setForm({ sourceUrl: '', rawJdText: '' });
-    loadJobs();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setMessage('');
+
+    if (!form.sourceUrl.trim() && !form.rawJdText.trim()) {
+      setMessage('请至少填写岗位网址或粘贴岗位 JD/要求。');
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await api.jobs.create({
+      sourceUrl: form.sourceUrl.trim() || undefined,
+      rawJdText: form.rawJdText.trim() || undefined,
+    });
+    setSubmitting(false);
+
+    if (result.data?.id) {
+      window.location.href = `/jobs/${result.data.id}`;
+      return;
+    }
+
+    setMessage(result.message || '创建岗位失败');
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('确定要删除这个求职目标吗？')) {
-      await api.jobs.delete(id);
-      loadJobs();
-    }
-  };
-
-  const getStatusInfo = (status: string) => {
-    const statusMap: Record<string, { text: string; color: string }> = {
-      INIT: { text: '待处理', color: 'bg-slate-100 text-slate-600' },
-      FETCHING: { text: '抓取中', color: 'bg-yellow-100 text-yellow-600' },
-      FETCH_SUCCESS: { text: '抓取成功', color: 'bg-blue-100 text-blue-600' },
-      FETCH_FAILED: { text: '抓取失败', color: 'bg-red-100 text-red-600' },
-      PARSING: { text: '解析中', color: 'bg-yellow-100 text-yellow-600' },
-      PARSE_SUCCESS: { text: '解析成功', color: 'bg-emerald-100 text-emerald-600' },
-      PARSE_FAILED: { text: '解析失败', color: 'bg-red-100 text-red-600' },
-    };
-    return statusMap[status] || { text: status, color: 'bg-gray-100 text-gray-600' };
+    if (!confirm('确定删除这个岗位目标吗？')) return;
+    await api.jobs.delete(id);
+    await loadJobs();
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
+    return <div className="text-center py-12 text-slate-500">加载中...</div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* 页面标题 */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">求职目标</h1>
-          <p className="text-slate-500 mt-1">管理你想要申请的岗位</p>
+          <h1 className="text-2xl font-bold text-slate-900">岗位输入与解析</h1>
+          <p className="text-slate-500 mt-1">输入招聘网址，或直接粘贴岗位 JD/任职要求，系统会解析成可用于生成简历的岗位目标。</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
-          + 新建目标
+        <button type="button" className="btn-primary" onClick={() => { setShowForm(true); setForm(emptyForm); }}>
+          新建岗位目标
         </button>
       </div>
 
-      {/* 新建表单 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <Step index="1" title="输入岗位" text="网址或 JD 文本" />
+        <Step index="2" title="解析要求" text="职责、技能、学历" />
+        <Step index="3" title="选择档案" text="复用主档案资料" />
+        <Step index="4" title="生成简历" text="编辑、发布、导出" />
+      </div>
+
+      {message && <div className="card px-4 py-3 text-sm text-red-600">{message}</div>}
+
       {showForm && (
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">新建求职目标</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="card p-6 space-y-5">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">职位来源URL</label>
-              <input
-                type="url"
-                value={form.sourceUrl}
-                onChange={e => setForm({ ...form, sourceUrl: e.target.value })}
-                placeholder="https://..."
-                className="input"
-              />
+              <h2 className="text-lg font-semibold text-slate-900">新建岗位目标</h2>
+              <p className="text-sm text-slate-500 mt-1">优先粘贴完整 JD。只填网址时，系统会尝试抓取页面，失败后可在详情页补充 JD 并重新解析。</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">或直接粘贴JD文本</label>
-              <textarea
-                value={form.rawJdText}
-                onChange={e => setForm({ ...form, rawJdText: e.target.value })}
-                rows={6}
-                placeholder="粘贴职位描述..."
-                className="input"
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
-                取消
-              </button>
-              <button type="submit" className="btn-primary">
-                创建并解析
-              </button>
-            </div>
-          </form>
-        </div>
+            <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>取消</button>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">岗位网址</label>
+            <input
+              type="url"
+              className="input"
+              value={form.sourceUrl}
+              onChange={(event) => setForm({ ...form, sourceUrl: event.target.value })}
+              placeholder="https://jobs.example.com/job/123"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">岗位 JD / 任职要求</label>
+            <textarea
+              className="input"
+              rows={10}
+              value={form.rawJdText}
+              onChange={(event) => setForm({ ...form, rawJdText: event.target.value })}
+              placeholder="粘贴职位描述、岗位职责、任职要求、技术栈、学历和经验要求..."
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-60">
+              {submitting ? '解析中...' : '创建并解析岗位'}
+            </button>
+          </div>
+        </form>
       )}
 
-      {/* 岗位列表 */}
       {jobs.length === 0 ? (
         <div className="card p-12 text-center">
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">🎯</span>
-          </div>
-          <p className="text-slate-600 mb-2">暂无求职目标</p>
-          <p className="text-slate-500 text-sm">点击"新建目标"添加你想申请的岗位</p>
+          <p className="text-slate-700 font-medium">还没有岗位目标</p>
+          <p className="text-slate-500 text-sm mt-2">先新建一个岗位目标，再基于它生成定制简历。</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {jobs.map(job => {
-            const statusInfo = getStatusInfo(job.status);
-            return (
-              <Link key={job.id} href={`/jobs/${job.id}`} className="card p-6 hover:shadow-lg cursor-pointer">
-                <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-slate-800">{job.parsedJobTitle || '待解析'}</h3>
-                  <span className={`tag ${statusInfo.color}`}>{statusInfo.text}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {jobs.map((job) => (
+            <div key={job.id} className="card p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-slate-900">{job.parsedJobTitle || '未命名岗位'}</h3>
+                  <p className="text-sm text-slate-500 mt-1">{job.parsedCompanyName || '公司未识别'}{job.parsedLocation ? ` / ${job.parsedLocation}` : ''}</p>
                 </div>
-                {job.parsedCompanyName && (
-                  <p className="text-slate-600 mb-1">🏢 {job.parsedCompanyName}</p>
-                )}
-                <p className="text-sm text-slate-500 mb-3">
-                  📍 {job.parsedLocation || '地点未知'}
-                </p>
-                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                  <span className="text-xs text-slate-400">
-                    {new Date(job.createdAt).toLocaleDateString()}
-                  </span>
-                  <button
-                    onClick={e => {
-                      e.preventDefault();
-                      handleDelete(job.id);
-                    }}
-                    className="text-xs text-red-500 hover:text-red-700"
-                  >
-                    删除
-                  </button>
+                <span className={`tag ${statusClass[job.status] || 'bg-slate-100 text-slate-600'}`}>{statusText[job.status] || job.status}</span>
+              </div>
+
+              {job.sourceUrl && <p className="text-xs text-slate-500 truncate">来源：{job.sourceUrl}</p>}
+              {job.parsedTechStack && job.parsedTechStack.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {job.parsedTechStack.slice(0, 6).map((item) => <span key={item} className="tag tag-primary">{item}</span>)}
                 </div>
-              </Link>
-            );
-          })}
+              )}
+              {job.parseError && <p className="text-sm text-red-600">{job.parseError}</p>}
+
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <span className="text-xs text-slate-400">{new Date(job.createdAt).toLocaleString()}</span>
+                <div className="flex gap-3">
+                  <Link href={`/jobs/${job.id}`} className="text-sm text-indigo-600 font-medium">查看并生成</Link>
+                  <button type="button" onClick={() => handleDelete(job.id)} className="text-sm text-red-500">删除</button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function Step({ index, title, text }: { index: string; title: string; text: string }) {
+  return (
+    <div className="card p-4">
+      <div className="text-xs font-semibold text-indigo-600">步骤 {index}</div>
+      <div className="font-medium text-slate-900 mt-1">{title}</div>
+      <div className="text-sm text-slate-500 mt-1">{text}</div>
     </div>
   );
 }

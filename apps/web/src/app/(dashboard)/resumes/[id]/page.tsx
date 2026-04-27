@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
 interface ResumeVersion {
@@ -26,6 +26,8 @@ interface ResumeVersion {
   };
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
+
 export default function ResumeEditPage() {
   const router = useRouter();
   const params = useParams();
@@ -34,11 +36,11 @@ export default function ResumeEditPage() {
   const [resume, setResume] = useState<ResumeVersion | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
   const [editForm, setEditForm] = useState({
-    name: '',
-    contentSummary: '',
-    contentSkills: [] as string[],
-    contentSelfEvaluation: '',
+    summary: '',
+    skills: [] as string[],
+    selfEvaluation: '',
   });
   const [newSkill, setNewSkill] = useState('');
 
@@ -47,14 +49,14 @@ export default function ResumeEditPage() {
   }, [id]);
 
   const loadResume = async () => {
+    setLoading(true);
     const result = await api.resumes.get(id);
     if (result.data) {
       setResume(result.data);
       setEditForm({
-        name: result.data.name,
-        contentSummary: result.data.contentSummary || '',
-        contentSkills: result.data.contentSkills || [],
-        contentSelfEvaluation: result.data.contentSelfEvaluation || '',
+        summary: result.data.contentSummary || '',
+        skills: result.data.contentSkills || [],
+        selfEvaluation: result.data.contentSelfEvaluation || '',
       });
     }
     setLoading(false);
@@ -62,253 +64,201 @@ export default function ResumeEditPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const result = await api.resumes.update(id, editForm);
+    setMessage('');
+    const result = await api.resumes.updateContent(id, editForm);
+    setSaving(false);
+
     if (result.data) {
       setResume(result.data);
+      setMessage('已保存');
+    } else {
+      setMessage(result.message || '保存失败');
     }
-    setSaving(false);
   };
 
   const handleAddSkill = () => {
-    if (newSkill && !editForm.contentSkills.includes(newSkill)) {
-      setEditForm({
-        ...editForm,
-        contentSkills: [...editForm.contentSkills, newSkill],
-      });
-      setNewSkill('');
-    }
-  };
-
-  const handleRemoveSkill = (skill: string) => {
-    setEditForm({
-      ...editForm,
-      contentSkills: editForm.contentSkills.filter(s => s !== skill),
-    });
+    const value = newSkill.trim();
+    if (!value || editForm.skills.includes(value)) return;
+    setEditForm({ ...editForm, skills: [...editForm.skills, value] });
+    setNewSkill('');
   };
 
   const handleCopy = async () => {
-    const result = await apiFetch<{ id: string }>(`/resumes/${id}/copy`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-    if (result.data) {
+    const result = await api.resumes.copy(id);
+    if (result.data?.id) {
       router.push(`/resumes/${result.data.id}`);
     }
   };
 
   const handleRegenerate = async () => {
-    if (confirm('确定要重新生成简历吗？当前内容将被覆盖。')) {
-      const result = await apiFetch<{ id: string }>(`/resumes/${id}/regenerate`, {
-        method: 'POST',
-      });
-      if (result.data) {
-        loadResume();
-      }
+    if (!confirm('确定重新生成简历吗？当前 AI 生成内容会被覆盖。')) return;
+    const result = await api.resumes.regenerate(id);
+    if (result.data) {
+      await loadResume();
+      setMessage('已重新生成');
+    } else {
+      setMessage(result.message || '重新生成失败');
     }
   };
 
   const handlePublish = async () => {
-    const result = await apiFetch<{ publicToken: string }>(`/publish/${id}`, {
-      method: 'POST',
-      body: JSON.stringify({ isPublic: true }),
-    });
-    if (result.data) {
-      alert(`简历已发布！公开链接: /r/${result.data.publicToken}`);
-      loadResume();
+    const result = await api.publish.publish(id);
+    if (result.data?.publicToken) {
+      setMessage(`已发布：/r/${result.data.publicToken}`);
+      await loadResume();
+      return;
     }
+    setMessage(result.message || '发布失败');
   };
 
   const handleDownloadPdf = () => {
-    window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/pdf/${id}`, '_blank');
+    window.open(`${API_BASE_URL}/pdf/${id}`, '_blank');
   };
 
-  if (loading) {
-    return <div className="text-center py-8">加载中...</div>;
-  }
-
-  if (!resume) {
-    return <div className="text-center py-8 text-red-500">简历未找到</div>;
-  }
+  if (loading) return <div className="text-center py-8">加载中...</div>;
+  if (!resume) return <div className="text-center py-8 text-red-500">简历未找到</div>;
 
   return (
-    <div className="px-4 sm:px-0">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">编辑简历</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={handleCopy}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            复制
-          </button>
-          <button
-            onClick={handleRegenerate}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            重新生成
-          </button>
-          <button
-            onClick={handlePublish}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            发布
-          </button>
-          <button
-            onClick={handleDownloadPdf}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-          >
-            下载PDF
-          </button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{resume.name}</h1>
+          <p className="text-sm text-slate-500">
+            {resume.profile.name}
+            {resume.jobTarget?.parsedJobTitle ? ` / ${resume.jobTarget.parsedJobTitle}` : ''}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={handleCopy} className="btn-secondary">复制</button>
+          <button type="button" onClick={handleRegenerate} className="btn-secondary">重新生成</button>
+          <button type="button" onClick={handlePublish} className="btn-primary bg-emerald-600 hover:bg-emerald-700">发布</button>
+          <button type="button" onClick={handleDownloadPdf} className="btn-primary">PDF</button>
         </div>
       </div>
 
+      {message && <div className="card px-4 py-3 text-sm text-slate-700">{message}</div>}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-medium mb-4">基本信息</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">简历名称</label>
-              <input
-                type="text"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">个人简介</label>
-              <textarea
-                value={editForm.contentSummary}
-                onChange={(e) => setEditForm({ ...editForm, contentSummary: e.target.value })}
-                rows={4}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">技能标签</label>
-              <div className="flex flex-wrap gap-2 mt-2 mb-2">
-                {editForm.contentSkills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="px-3 py-1 bg-indigo-100 text-indigo-600 rounded-full text-sm flex items-center"
-                  >
-                    {skill}
-                    <button
-                      onClick={() => handleRemoveSkill(skill)}
-                      className="ml-2 text-indigo-400 hover:text-indigo-600"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  placeholder="添加技能"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
-                />
-                <button
-                  onClick={handleAddSkill}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                >
-                  添加
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">自我评价</label>
-              <textarea
-                value={editForm.contentSelfEvaluation}
-                onChange={(e) => setEditForm({ ...editForm, contentSelfEvaluation: e.target.value })}
-                rows={3}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {saving ? '保存中...' : '保存修改'}
-            </button>
+        <div className="card p-6 space-y-5">
+          <h2 className="text-lg font-semibold text-slate-800">编辑内容</h2>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">个人简介</label>
+            <textarea
+              value={editForm.summary}
+              onChange={(event) => setEditForm({ ...editForm, summary: event.target.value })}
+              rows={5}
+              className="input"
+            />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">技能标签</label>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {editForm.skills.map((skill) => (
+                <span key={skill} className="tag tag-primary flex items-center gap-2">
+                  {skill}
+                  <button
+                    type="button"
+                    onClick={() => setEditForm({ ...editForm, skills: editForm.skills.filter((item) => item !== skill) })}
+                  >
+                    x
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newSkill}
+                onChange={(event) => setNewSkill(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleAddSkill();
+                  }
+                }}
+                className="input"
+                placeholder="添加技能"
+              />
+              <button type="button" onClick={handleAddSkill} className="btn-secondary">添加</button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">自我评价</label>
+            <textarea
+              value={editForm.selfEvaluation}
+              onChange={(event) => setEditForm({ ...editForm, selfEvaluation: event.target.value })}
+              rows={4}
+              className="input"
+            />
+          </div>
+
+          <button type="button" onClick={handleSave} disabled={saving} className="btn-primary w-full disabled:opacity-60">
+            {saving ? '保存中...' : '保存修改'}
+          </button>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-medium mb-4">简历预览</h2>
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <div className="text-center mb-4">
-              <h3 className="text-xl font-bold">{resume.profile.name}</h3>
-              <p className="text-gray-600">{resume.profile.email}</p>
-              {resume.profile.phone && <p className="text-gray-600">{resume.profile.phone}</p>}
-              {resume.profile.location && <p className="text-gray-600">{resume.profile.location}</p>}
-            </div>
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">简历预览</h2>
+          <div className="border border-slate-200 rounded-lg p-5 bg-slate-50 space-y-5">
+            <header className="text-center border-b border-slate-200 pb-4">
+              <h3 className="text-xl font-bold text-slate-900">{resume.profile.name}</h3>
+              <p className="text-sm text-slate-600">{resume.profile.email}</p>
+              <p className="text-sm text-slate-600">
+                {[resume.profile.phone, resume.profile.location].filter(Boolean).join(' / ')}
+              </p>
+            </header>
 
-            {editForm.contentSummary && (
-              <div className="mb-4">
-                <h4 className="font-bold text-gray-800 border-b pb-1 mb-2">个人简介</h4>
-                <p className="text-sm text-gray-600">{editForm.contentSummary}</p>
-              </div>
+            {editForm.summary && (
+              <section>
+                <h4 className="font-semibold text-slate-800 border-b border-slate-200 pb-1 mb-2">个人简介</h4>
+                <p className="text-sm text-slate-600 whitespace-pre-wrap">{editForm.summary}</p>
+              </section>
             )}
 
-            {editForm.contentSkills.length > 0 && (
-              <div className="mb-4">
-                <h4 className="font-bold text-gray-800 border-b pb-1 mb-2">技能特长</h4>
-                <div className="flex flex-wrap gap-1">
-                  {editForm.contentSkills.map((skill) => (
-                    <span key={skill} className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs rounded">
-                      {skill}
-                    </span>
-                  ))}
+            {editForm.skills.length > 0 && (
+              <section>
+                <h4 className="font-semibold text-slate-800 border-b border-slate-200 pb-1 mb-2">技能</h4>
+                <div className="flex flex-wrap gap-2">
+                  {editForm.skills.map((skill) => <span key={skill} className="tag tag-primary">{skill}</span>)}
                 </div>
-              </div>
+              </section>
             )}
 
-            {resume.contentWorkExperiences && resume.contentWorkExperiences.length > 0 && (
-              <div className="mb-4">
-                <h4 className="font-bold text-gray-800 border-b pb-1 mb-2">工作经历</h4>
-                {resume.contentWorkExperiences.map((exp: any, idx: number) => (
-                  <div key={idx} className="mb-2">
-                    <p className="font-medium">{exp.title} - {exp.company}</p>
-                    <p className="text-xs text-gray-500">{exp.startDate} - {exp.endDate || '至今'}</p>
+            {(resume.contentWorkExperiences || []).length > 0 && (
+              <section>
+                <h4 className="font-semibold text-slate-800 border-b border-slate-200 pb-1 mb-2">工作经历</h4>
+                {resume.contentWorkExperiences?.map((item, index) => (
+                  <div key={index} className="mb-3 text-sm">
+                    <p className="font-medium text-slate-900">{item.title || item.companyName} - {item.company || item.companyName}</p>
+                    {item.description && <p className="text-slate-600">{item.description}</p>}
                   </div>
                 ))}
-              </div>
+              </section>
             )}
 
-            {editForm.contentSelfEvaluation && (
-              <div className="mb-4">
-                <h4 className="font-bold text-gray-800 border-b pb-1 mb-2">自我评价</h4>
-                <p className="text-sm text-gray-600">{editForm.contentSelfEvaluation}</p>
-              </div>
+            {(resume.contentProjectExperiences || []).length > 0 && (
+              <section>
+                <h4 className="font-semibold text-slate-800 border-b border-slate-200 pb-1 mb-2">项目经历</h4>
+                {resume.contentProjectExperiences?.map((item, index) => (
+                  <div key={index} className="mb-3 text-sm">
+                    <p className="font-medium text-slate-900">{item.name || item.projectName}</p>
+                    {item.description && <p className="text-slate-600">{item.description}</p>}
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {editForm.selfEvaluation && (
+              <section>
+                <h4 className="font-semibold text-slate-800 border-b border-slate-200 pb-1 mb-2">自我评价</h4>
+                <p className="text-sm text-slate-600 whitespace-pre-wrap">{editForm.selfEvaluation}</p>
+              </section>
             )}
           </div>
         </div>
       </div>
     </div>
   );
-}
-
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<{ data?: T; message?: string }> {
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  const url = `${API_BASE_URL}${endpoint}`;
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include',
-    });
-    const data = await response.json();
-    return { data: response.ok ? data.data || data : undefined, message: data.message };
-  } catch {
-    return { message: 'Network error' };
-  }
 }

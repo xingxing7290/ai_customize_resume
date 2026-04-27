@@ -6,6 +6,46 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+const JSON_ARRAY_FIELDS = new Set([
+  'contentSkills',
+  'contentWorkExperiences',
+  'contentProjectExperiences',
+  'contentCertificates',
+  'aiOptimizationNotes',
+  'aiGapAnalysis',
+  'parsedResponsibilities',
+  'parsedRequirements',
+  'parsedTechStack',
+]);
+
+function normalizePayload(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizePayload(item));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const source = value as Record<string, unknown>;
+  const normalized: Record<string, unknown> = {};
+
+  for (const [key, item] of Object.entries(source)) {
+    if (JSON_ARRAY_FIELDS.has(key) && typeof item === 'string') {
+      try {
+        normalized[key] = JSON.parse(item);
+      } catch {
+        normalized[key] = [];
+      }
+      continue;
+    }
+
+    normalized[key] = normalizePayload(item);
+  }
+
+  return normalized;
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -35,13 +75,14 @@ export async function apiFetch<T>(
 
   try {
     const response = await fetch(url, config);
-    const data = await response.json();
+    const payload = await response.json();
 
     if (!response.ok) {
-      return { code: response.status, message: data.message || 'Request failed' };
+      return { code: response.status, message: payload.message || 'Request failed' };
     }
 
-    return { data };
+    const data = Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+    return { data: normalizePayload(data) as T };
   } catch {
     return { code: 500, message: 'Network error' };
   }
@@ -53,16 +94,30 @@ export const api = {
       apiFetch<{ accessToken: string; user: { id: string; email: string; name: string } }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
+      }).then((result) => {
+        if (result.data?.accessToken && typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', result.data.accessToken);
+        }
+        return result;
       }),
 
     login: (data: { email: string; password: string }) =>
       apiFetch<{ accessToken: string; user: { id: string; email: string; name: string } }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(data),
+      }).then((result) => {
+        if (result.data?.accessToken && typeof window !== 'undefined') {
+          localStorage.setItem('accessToken', result.data.accessToken);
+        }
+        return result;
       }),
 
     logout: () =>
-      apiFetch<void>('/auth/logout', { method: 'POST' }),
+      apiFetch<void>('/auth/logout', { method: 'POST' }).finally(() => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
+        }
+      }),
 
     me: () =>
       apiFetch<{ id: string; email: string; name: string; avatar?: string }>('/auth/me'),
@@ -89,6 +144,16 @@ export const api = {
     get: (id: string) => apiFetch<any>(`/resumes/${id}`),
     create: (data: any) => apiFetch<any>('/resumes', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/resumes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    updateContent: (id: string, data: any) => apiFetch<any>(`/resumes/${id}/content`, { method: 'PUT', body: JSON.stringify(data) }),
+    copy: (id: string, data: any = {}) => apiFetch<any>(`/resumes/${id}/copy`, { method: 'POST', body: JSON.stringify(data) }),
+    regenerate: (id: string) => apiFetch<any>(`/resumes/${id}/regenerate`, { method: 'POST' }),
     delete: (id: string) => apiFetch<void>(`/resumes/${id}`, { method: 'DELETE' }),
+  },
+
+  publish: {
+    publish: (versionId: string) =>
+      apiFetch<any>(`/publish/${versionId}`, { method: 'POST', body: JSON.stringify({ isPublic: true }) }),
+    get: (versionId: string) => apiFetch<any>(`/publish/${versionId}`),
+    unpublish: (versionId: string) => apiFetch<any>(`/publish/${versionId}`, { method: 'DELETE' }),
   },
 };

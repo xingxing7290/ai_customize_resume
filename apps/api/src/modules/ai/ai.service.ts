@@ -51,8 +51,16 @@ export class AiService {
       await this.updateTaskLogSuccess(taskLog.id, result);
       return result.data;
     } catch (error) {
-      await this.updateTaskLogFailed(taskLog.id, error);
-      throw error;
+      const fallback = this.buildFallbackJobParse(jdText);
+      await this.updateTaskLogSuccess(taskLog.id, {
+        data: {
+          ...fallback,
+          fallbackReason: error.message || String(error),
+        },
+        tokenUsed: 0,
+        durationMs: 0,
+      });
+      return fallback;
     }
   }
 
@@ -81,9 +89,85 @@ export class AiService {
       await this.updateTaskLogSuccess(taskLog.id, result);
       return result.data;
     } catch (error) {
-      await this.updateTaskLogFailed(taskLog.id, error);
-      throw error;
+      const fallback = this.buildFallbackResume(profileData, jobData);
+      await this.updateTaskLogSuccess(taskLog.id, {
+        data: {
+          ...fallback,
+          fallbackReason: error.message || String(error),
+        },
+        tokenUsed: 0,
+        durationMs: 0,
+      });
+      return fallback;
     }
+  }
+
+  private buildFallbackJobParse(jdText: string) {
+    const lines = jdText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const firstLine = lines[0] || '未命名岗位';
+    const techKeywords = [
+      'JavaScript', 'TypeScript', 'React', 'Next.js', 'Vue', 'Node.js',
+      'NestJS', 'Java', 'Spring', 'Python', 'Go', 'MySQL', 'PostgreSQL',
+      'Redis', 'Docker', 'Kubernetes', 'AWS', 'Linux', 'Git',
+    ];
+    const matchedTech = techKeywords.filter((keyword) =>
+      jdText.toLowerCase().includes(keyword.toLowerCase()),
+    );
+
+    return {
+      jobTitle: firstLine.slice(0, 80),
+      companyName: undefined,
+      location: undefined,
+      responsibilities: lines.slice(0, 6),
+      requirements: lines.slice(0, 8),
+      preferredQualifications: [],
+      keywords: matchedTech,
+      techStack: matchedTech,
+      experienceRequirement: undefined,
+      educationRequirement: undefined,
+      category: matchedTech.length > 0 ? '技术岗位' : '通用岗位',
+    };
+  }
+
+  private buildFallbackResume(profileData: any, jobData: any) {
+    const skills = (profileData.skillRecords || []).map((skill: any) => skill.name);
+    const workExperiences = (profileData.workExperiences || []).map((work: any) => ({
+      company: work.company,
+      title: work.title,
+      startDate: work.startDate,
+      endDate: work.endDate,
+      description: work.description,
+      highlights: this.splitListText(work.highlights),
+    }));
+    const projectExperiences = (profileData.projectExperiences || []).map((project: any) => ({
+      name: project.name,
+      role: project.role,
+      description: project.description,
+      highlights: this.splitListText(project.highlights),
+      techStack: this.splitListText(project.techStack),
+    }));
+
+    return {
+      summary: profileData.summary || profileData.selfEvaluation || `面向${jobData.jobTitle || '目标岗位'}的定制简历。`,
+      skills,
+      workExperiences,
+      projectExperiences,
+      certificates: (profileData.certificateRecords || []).map((cert: any) => cert.name),
+      selfEvaluation: profileData.selfEvaluation || profileData.summary,
+      optimizationNotes: ['当前使用本地降级生成：仅基于用户已填写资料重组内容，未虚构经历。'],
+      gapAnalysis: jobData.techStack ? [`请确认简历中是否覆盖岗位技术关键词：${jobData.techStack}`] : [],
+    };
+  }
+
+  private splitListText(value?: string | null): string[] {
+    if (!value) return [];
+    return value
+      .split(/\r?\n|,|，|;|；/)
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
   async validateGeneratedResume(

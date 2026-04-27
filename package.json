@@ -2,6 +2,10 @@
   "name": "ai-customize-resume",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
   "description": "AI 驱动的岗位定制简历生成平台",
   "scripts": {
     "dev": "turbo run dev",
@@ -10,11 +14,11 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "db:generate": "pnpm --filter @ai-resume/database prisma generate",
-    "db:migrate": "pnpm --filter @ai-resume/database prisma migrate dev",
-    "db:push": "pnpm --filter @ai-resume/database prisma db push",
-    "db:studio": "pnpm --filter @ai-resume/database prisma studio",
-    "db:seed": "pnpm --filter @ai-resume/database prisma db seed"
+    "db:generate": "pnpm --filter @ai-resume/api prisma generate",
+    "db:migrate": "pnpm --filter @ai-resume/api prisma migrate dev",
+    "db:push": "pnpm --filter @ai-resume/api prisma db push",
+    "db:studio": "pnpm --filter @ai-resume/api prisma studio",
+    "db:seed": "pnpm --filter @ai-resume/api prisma db seed"
   },
   "devDependencies": {
     "prettier": "^3.2.0",
@@ -24,7 +28,7 @@
   },
   "packageManager": "pnpm@8.15.0",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.9.0",
     "pnpm": ">=8.0.0"
   },
   "dependencies": {

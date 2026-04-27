@@ -26,8 +26,9 @@ export class ResumesService {
       throw new ForbiddenException('Profile not found or access denied');
     }
 
+    let jobTarget: any = null;
     if (dto.jobTargetId) {
-      const jobTarget = await this.prisma.jobTarget.findUnique({
+      jobTarget = await this.prisma.jobTarget.findUnique({
         where: { id: dto.jobTargetId },
       });
 
@@ -36,16 +37,48 @@ export class ResumesService {
       }
     }
 
-    return this.prisma.resumeVersion.create({
+    const resume = await this.prisma.resumeVersion.create({
       data: {
         userId,
         ...dto,
+        status: dto.jobTargetId ? 'GENERATING' : 'DRAFT',
       },
       include: {
         jobTarget: true,
         profile: true,
       },
     });
+
+    if (!jobTarget) {
+      return resume;
+    }
+
+    try {
+      const generatedContent = await this.aiService.generateTailoredResume(
+        userId,
+        profile,
+        this.toJobAiInput(jobTarget),
+        resume.id,
+      );
+
+      return this.prisma.resumeVersion.update({
+        where: { id: resume.id },
+        data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT'),
+        include: {
+          jobTarget: true,
+          profile: true,
+        },
+      });
+    } catch {
+      return this.prisma.resumeVersion.update({
+        where: { id: resume.id },
+        data: { status: 'GENERATE_FAILED' },
+        include: {
+          jobTarget: true,
+          profile: true,
+        },
+      });
+    }
   }
 
   async findAll(userId: string) {
@@ -62,6 +95,10 @@ export class ResumesService {
   async findByJobTarget(userId: string, jobTargetId: string) {
     return this.prisma.resumeVersion.findMany({
       where: { userId, jobTargetId },
+      include: {
+        jobTarget: true,
+        profile: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -128,8 +165,8 @@ export class ResumesService {
         status: 'DRAFT',
         contentSummary: original.contentSummary,
         contentSkills: original.contentSkills,
-        contentWorkExperiences: original.contentWorkExperiences ? JSON.stringify(original.contentWorkExperiences) : null,
-        contentProjectExperiences: original.contentProjectExperiences ? JSON.stringify(original.contentProjectExperiences) : null,
+        contentWorkExperiences: original.contentWorkExperiences,
+        contentProjectExperiences: original.contentProjectExperiences,
         contentCertificates: original.contentCertificates,
         contentSelfEvaluation: original.contentSelfEvaluation,
       },
@@ -164,36 +201,18 @@ export class ResumesService {
       const generatedContent = await this.aiService.generateTailoredResume(
         userId,
         resume.profile,
-        {
-          jobTitle: jobTarget.parsedJobTitle,
-          companyName: jobTarget.parsedCompanyName,
-          responsibilities: jobTarget.parsedResponsibilities,
-          requirements: jobTarget.parsedRequirements,
-          techStack: jobTarget.parsedTechStack,
-        },
+        this.toJobAiInput(jobTarget),
         id,
       );
 
-      const updated = await this.prisma.resumeVersion.update({
+      return this.prisma.resumeVersion.update({
         where: { id },
-        data: {
-          status: 'READY_EDIT',
-          contentSummary: generatedContent.summary,
-          contentSkills: generatedContent.skills ? JSON.stringify(generatedContent.skills) : null,
-          contentWorkExperiences: generatedContent.workExperiences ? JSON.stringify(generatedContent.workExperiences) : null,
-          contentProjectExperiences: generatedContent.projectExperiences ? JSON.stringify(generatedContent.projectExperiences) : null,
-          contentCertificates: generatedContent.certificates ? JSON.stringify(generatedContent.certificates) : null,
-          contentSelfEvaluation: generatedContent.selfEvaluation,
-          aiOptimizationNotes: generatedContent.optimizationNotes ? JSON.stringify(generatedContent.optimizationNotes) : null,
-          aiGapAnalysis: generatedContent.gapAnalysis ? JSON.stringify(generatedContent.gapAnalysis) : null,
-        },
+        data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT'),
         include: {
           jobTarget: true,
           profile: true,
         },
       });
-
-      return updated;
     } catch (error) {
       await this.prisma.resumeVersion.update({
         where: { id },
@@ -228,5 +247,39 @@ export class ResumesService {
         profile: true,
       },
     });
+  }
+
+  private toJobAiInput(jobTarget: any) {
+    return {
+      jobTitle: jobTarget.parsedJobTitle,
+      companyName: jobTarget.parsedCompanyName,
+      responsibilities: this.parseJsonArray(jobTarget.parsedResponsibilities),
+      requirements: this.parseJsonArray(jobTarget.parsedRequirements),
+      techStack: this.parseJsonArray(jobTarget.parsedTechStack),
+    };
+  }
+
+  private toGeneratedResumeUpdate(generatedContent: any, status: string) {
+    return {
+      status,
+      contentSummary: generatedContent.summary,
+      contentSkills: generatedContent.skills ? JSON.stringify(generatedContent.skills) : null,
+      contentWorkExperiences: generatedContent.workExperiences ? JSON.stringify(generatedContent.workExperiences) : null,
+      contentProjectExperiences: generatedContent.projectExperiences ? JSON.stringify(generatedContent.projectExperiences) : null,
+      contentCertificates: generatedContent.certificates ? JSON.stringify(generatedContent.certificates) : null,
+      contentSelfEvaluation: generatedContent.selfEvaluation,
+      aiOptimizationNotes: generatedContent.optimizationNotes ? JSON.stringify(generatedContent.optimizationNotes) : null,
+      aiGapAnalysis: generatedContent.gapAnalysis ? JSON.stringify(generatedContent.gapAnalysis) : null,
+    };
+  }
+
+  private parseJsonArray(value?: string | null): string[] {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 }

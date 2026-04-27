@@ -243,7 +243,31 @@ export class JobsService {
         // Some job sites keep network or scripts pending; use the best rendered text we have.
       }
 
-      const text = await page.evaluate(() => document.body?.innerText || '');
+      const text = await page.evaluate(() => {
+        const isZhipin = location.hostname.includes('zhipin.com');
+        if (isZhipin) {
+          const selectors = [
+            '.job-card-wrapper',
+            '.job-list-box li',
+            '.job-card-left',
+            '.job-primary',
+            '.search-job-result li',
+          ];
+
+          for (const selector of selectors) {
+            const cards = Array.from(document.querySelectorAll(selector))
+              .map((node) => (node as HTMLElement).innerText)
+              .map((value) => value.replace(/\s+/g, ' ').trim())
+              .filter((value) => value.length > 40);
+
+            if (cards.length > 0) {
+              return `Source: BOSS Zhipin search result\nSelected visible job card:\n${cards[0]}`;
+            }
+          }
+        }
+
+        return document.body?.innerText || '';
+      });
       const normalized = text.replace(/\s+/g, ' ').trim().slice(0, 20000);
       this.fileLogger.operation('job_url_rendered', {
         userId,
@@ -289,7 +313,9 @@ export class JobsService {
       '职位描述',
       '任职要求',
       '工作职责',
-      'responsibilities',
+	      'selected visible job card',
+	      'boss zhipin search result',
+	      'responsibilities',
       'requirements',
       'qualifications',
       '薪资',
@@ -313,7 +339,20 @@ export class JobsService {
       };
     }
 
-    return { ok: true };
+	    const looksLikeGenericNavigation =
+	      lower.includes('热门职位') &&
+	      lower.includes('首页') &&
+	      lower.includes('登录/注册') &&
+	      !hasJobSignals;
+
+	    if (looksLikeGenericNavigation) {
+	      return {
+	        ok: false,
+	        reason: 'The URL rendered a generic job search/navigation page, not a specific job. Open a concrete job detail URL or paste the JD text.',
+	      };
+	    }
+
+	    return { ok: true };
   }
 
   private htmlToText(html: string) {

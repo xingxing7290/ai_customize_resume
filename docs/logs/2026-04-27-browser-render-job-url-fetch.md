@@ -43,3 +43,12 @@
 - Updated the file logger so operation action names are not overwritten by payload fields.
 - Updated browser render failure payload to use `errorMessage`.
 - Server needs Chromium native dependencies installed before Puppeteer can render dynamic job pages.
+
+## BOSS Search Page Handling
+
+- After Chromium dependencies were installed, BOSS search pages could render more text.
+- The rendered text can still be generic navigation/search content rather than a single job detail.
+- Added BOSS-specific DOM extraction:
+  - Try to extract the first visible job card from common BOSS selectors.
+  - If no job card is found and the page is only generic navigation/search text, reject it instead of passing it to AI parsing.
+- This keeps direct URL parsing useful where a visible card/detail is available, while avoiding parsing site navigation as a job.

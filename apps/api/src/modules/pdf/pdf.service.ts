@@ -104,10 +104,14 @@ export class PdfService {
 
     try {
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+      await page.setContent(html, { waitUntil: 'load' });
+      await page.evaluateHandle('document.fonts.ready').catch(() => undefined);
       const pdf = await page.pdf({
         format: 'A4',
         printBackground: true,
+        preferCSSPageSize: true,
+        displayHeaderFooter: false,
         margin: { top: '0', right: '0', bottom: '0', left: '0' },
       });
       return Buffer.from(pdf);
@@ -404,7 +408,8 @@ export class PdfService {
     return `
       :root { --accent: ${theme[0]}; --accent-soft: ${theme[1]}; --accent-ink: ${theme[2]}; --panel: ${theme[3]}; --muted: #64748b; --heading: #111827; }
       * { box-sizing: border-box; }
-      body { margin: 0; background: #eef2f7; color: #172033; font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; font-size: 10.5pt; line-height: 1.55; }
+      html, body { width: 210mm; min-height: 297mm; }
+      body { margin: 0; background: #fff; color: #172033; font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif; font-size: 10.5pt; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .resume { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; padding: 18mm; }
       .no-pad { padding: 0; }
       h1 { margin: 0; color: var(--heading); font-size: 27pt; line-height: 1.1; letter-spacing: 0; }

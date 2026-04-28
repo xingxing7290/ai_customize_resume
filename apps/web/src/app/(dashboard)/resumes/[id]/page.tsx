@@ -181,7 +181,18 @@ export default function ResumeEditPage() {
         return;
       }
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/pdf')) {
+        const payload = await response.json().catch(() => null);
+        setMessage(payload?.message || `PDF 下载失败，当前样式：${template}`);
+        return;
+      }
+
       const blob = await response.blob();
+      if (blob.size === 0) {
+        setMessage(`PDF 生成为空文件，当前样式：${template}`);
+        return;
+      }
       const href = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = href;

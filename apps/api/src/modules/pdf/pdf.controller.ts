@@ -48,17 +48,30 @@ export class PdfController {
       return;
     }
 
-    const pdf = await this.pdfService.generatePdf(this.toResumeData(resume), style);
-    this.fileLogger.operation('resume_pdf_downloaded', {
-      userId,
-      versionId,
-      style: this.pdfService.normalizeTemplate(style),
-      bytes: pdf.length,
-    });
+    const normalizedStyle = this.pdfService.normalizeTemplate(style);
+    try {
+      const pdf = await this.pdfService.generatePdf(this.toResumeData(resume), normalizedStyle);
+      this.fileLogger.operation('resume_pdf_downloaded', {
+        userId,
+        versionId,
+        style: normalizedStyle,
+        bytes: pdf.length,
+      });
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="resume-${versionId}.pdf"`);
-    res.send(pdf);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="resume-${versionId}-${normalizedStyle}.pdf"`);
+      res.send(pdf);
+    } catch (error) {
+      this.fileLogger.error(
+        'resume_pdf_download_failed',
+        error instanceof Error ? error.stack : undefined,
+        'PdfController',
+      );
+      res.status(500).json({
+        message: 'PDF 生成失败，请稍后重试',
+        style: normalizedStyle,
+      });
+    }
   }
 
   @Get('public/:token')
@@ -95,17 +108,30 @@ export class PdfController {
     }
 
     const resume = publishRecord.version;
-    const pdf = await this.pdfService.generatePdf(this.toResumeData(resume), style);
-    this.fileLogger.operation('public_resume_pdf_downloaded', {
-      token,
-      versionId: resume.id,
-      style: this.pdfService.normalizeTemplate(style),
-      bytes: pdf.length,
-    });
+    const normalizedStyle = this.pdfService.normalizeTemplate(style);
+    try {
+      const pdf = await this.pdfService.generatePdf(this.toResumeData(resume), normalizedStyle);
+      this.fileLogger.operation('public_resume_pdf_downloaded', {
+        token,
+        versionId: resume.id,
+        style: normalizedStyle,
+        bytes: pdf.length,
+      });
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="resume-${token}.pdf"`);
-    res.send(pdf);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="resume-${token}-${normalizedStyle}.pdf"`);
+      res.send(pdf);
+    } catch (error) {
+      this.fileLogger.error(
+        'public_resume_pdf_download_failed',
+        error instanceof Error ? error.stack : undefined,
+        'PdfController',
+      );
+      res.status(500).json({
+        message: 'PDF 生成失败，请稍后重试',
+        style: normalizedStyle,
+      });
+    }
   }
 
   private toResumeData(resume: any) {

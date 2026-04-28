@@ -107,7 +107,8 @@ export class AiService {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
-    const firstLine = lines[0] || '未命名岗位';
+    const namedTitle = lines.find((line) => /^岗位名称[:：]/.test(line));
+    const firstLine = (namedTitle?.replace(/^岗位名称[:：]\s*/, '') || lines[0] || '未命名岗位').trim();
     const techKeywords = [
       'JavaScript', 'TypeScript', 'React', 'Next.js', 'Vue', 'Node.js',
       'NestJS', 'Java', 'Spring', 'Python', 'Go', 'MySQL', 'PostgreSQL',

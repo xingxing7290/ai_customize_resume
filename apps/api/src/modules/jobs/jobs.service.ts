@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreateJobTargetDto, UpdateJobTargetDto } from './dto';
-import { AiService } from '../ai/ai.service';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { FileLoggerService } from '../../common/logger/file-logger.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { AiService } from '../ai/ai.service';
+import { CreateJobTargetDto, UpdateJobTargetDto } from './dto';
 
 @Injectable()
 export class JobsService {
@@ -30,6 +30,7 @@ export class JobsService {
       jobTargetId: job.id,
       hasSourceUrl: Boolean(dto.sourceUrl),
       hasJdText: Boolean(jdText),
+      validation,
     });
 
     if (!validation.ok) {
@@ -52,24 +53,16 @@ export class JobsService {
   }
 
   async findOne(userId: string, id: string) {
-    const job = await this.prisma.jobTarget.findUnique({
-      where: { id },
-    });
+    const job = await this.prisma.jobTarget.findUnique({ where: { id } });
 
-    if (!job) {
-      throw new NotFoundException('Job target not found');
-    }
-
-    if (job.userId !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    if (!job) throw new NotFoundException('Job target not found');
+    if (job.userId !== userId) throw new ForbiddenException('Access denied');
 
     return job;
   }
 
   async update(userId: string, id: string, dto: UpdateJobTargetDto) {
     await this.findOne(userId, id);
-
     return this.prisma.jobTarget.update({
       where: { id },
       data: dto,
@@ -78,10 +71,7 @@ export class JobsService {
 
   async remove(userId: string, id: string) {
     await this.findOne(userId, id);
-
-    return this.prisma.jobTarget.delete({
-      where: { id },
-    });
+    return this.prisma.jobTarget.delete({ where: { id } });
   }
 
   async reparse(userId: string, id: string) {
@@ -134,12 +124,12 @@ export class JobsService {
         where: { id: jobTargetId },
         data: {
           status: 'PARSE_SUCCESS',
-          parsedJobTitle: parsed.jobTitle,
+          parsedJobTitle: this.cleanParsedTitle(parsed.jobTitle),
           parsedCompanyName: parsed.companyName,
           parsedLocation: parsed.location,
           parsedResponsibilities: JSON.stringify(parsed.responsibilities || []),
           parsedRequirements: JSON.stringify(parsed.requirements || []),
-          parsedTechStack: JSON.stringify(parsed.techStack || []),
+          parsedTechStack: JSON.stringify(parsed.techStack || parsed.keywords || []),
           parseError: null,
         },
       });
@@ -160,52 +150,57 @@ export class JobsService {
   }
 
   private async resolveJdText(userId: string, sourceUrl?: string | null, rawJdText?: string | null) {
-    if (rawJdText?.trim()) {
-      return rawJdText.trim();
-    }
+    if (rawJdText?.trim()) return rawJdText.trim();
+    if (!sourceUrl?.trim()) return undefined;
 
-    if (!sourceUrl?.trim()) {
-      return undefined;
-    }
+    const normalizedUrl = sourceUrl.trim();
 
     try {
-      const response = await fetch(sourceUrl, {
+      const response = await fetch(normalizedUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AIResumeBot/1.0)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
           Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.7',
         },
         signal: AbortSignal.timeout(10000),
       });
 
-      if (!response.ok) {
-        throw new Error(`Fetch failed with HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Fetch failed with HTTP ${response.status}`);
 
       const html = await response.text();
       const text = this.htmlToText(html).slice(0, 20000);
       this.fileLogger.operation('job_url_fetched', {
         userId,
-        sourceUrl,
+        sourceUrl: normalizedUrl,
         textLength: text.length,
       });
 
-      if (this.validateJdText(text).ok) {
-        return text;
-      }
+      if (this.validateJdText(text).ok) return text;
 
       this.fileLogger.operation('job_url_fetch_unusable', {
         userId,
-        sourceUrl,
+        sourceUrl: normalizedUrl,
         textLength: text.length,
       });
 
-      const renderedText = await this.renderUrlToText(userId, sourceUrl);
-      return renderedText || text || `Job URL: ${sourceUrl}`;
+      const renderedText = await this.renderUrlToText(userId, normalizedUrl);
+      if (this.validateJdText(renderedText).ok) return renderedText;
+
+      const fallback = this.buildUrlFallbackJd(normalizedUrl, renderedText || text);
+      this.fileLogger.operation('job_url_fallback_built', {
+        userId,
+        sourceUrl: normalizedUrl,
+        textLength: fallback.length,
+      });
+      return fallback;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.fileLogger.operation('job_url_fetch_failed', { userId, sourceUrl, message });
-      const renderedText = await this.renderUrlToText(userId, sourceUrl);
-      return renderedText || `Job URL: ${sourceUrl}\n\nThe system could not fetch readable job content from this page. Paste the full JD text and reparse.`;
+      this.fileLogger.operation('job_url_fetch_failed', { userId, sourceUrl: normalizedUrl, message });
+
+      const renderedText = await this.renderUrlToText(userId, normalizedUrl);
+      if (this.validateJdText(renderedText).ok) return renderedText;
+
+      return this.buildUrlFallbackJd(normalizedUrl, renderedText);
     }
   }
 
@@ -228,51 +223,90 @@ export class JobsService {
       await page.setUserAgent(
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
       );
+      await page.setExtraHTTPHeaders({ 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.7' });
       await page.setViewport({ width: 1366, height: 900 });
       await page.goto(sourceUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+      await this.waitForRenderedPage(page);
 
-      try {
-        await page.waitForFunction(
-          () => {
-            const text = document.body?.innerText || '';
-            return text.replace(/\s+/g, '').length > 500;
-          },
-          { timeout: 12000 },
-        );
-      } catch {
-        // Some job sites keep network or scripts pending; use the best rendered text we have.
-      }
-
-      const text = await page.evaluate(() => {
+      let normalized = await page.evaluate(() => {
+        const clean = (value?: string | null) => (value || '').replace(/\s+/g, ' ').trim();
+        const textOf = (selector: string) => clean((document.querySelector(selector) as HTMLElement | null)?.innerText);
         const isZhipin = location.hostname.includes('zhipin.com');
+
         if (isZhipin) {
-          const selectors = [
-            '.job-card-wrapper',
-            '.job-list-box li',
-            '.job-card-left',
-            '.job-primary',
-            '.search-job-result li',
-          ];
+          const detailParts = [
+            textOf('.job-title'),
+            textOf('.name'),
+            textOf('.salary'),
+            textOf('.job-primary'),
+            textOf('.job-sec'),
+            textOf('.job-detail'),
+            textOf('.detail-content'),
+            textOf('.job-detail-section'),
+            textOf('.job-detail-container'),
+            textOf('.job-banner'),
+            textOf('.company-info'),
+          ].filter(Boolean);
 
-          for (const selector of selectors) {
-            const cards = Array.from(document.querySelectorAll(selector))
-              .map((node) => (node as HTMLElement).innerText)
-              .map((value) => value.replace(/\s+/g, ' ').trim())
-              .filter((value) => value.length > 40);
+          if (detailParts.join('').length > 120) {
+            return `来源：BOSS直聘职位详情页\n${detailParts.join('\n')}`;
+          }
 
-            if (cards.length > 0) {
-              return `Source: BOSS Zhipin search result\nSelected visible job card:\n${cards[0]}`;
-            }
+          const detailLink = Array.from(document.querySelectorAll('a'))
+            .map((anchor) => ({
+              text: clean((anchor as HTMLElement).innerText),
+              href: (anchor as HTMLAnchorElement).href,
+            }))
+            .find((item) => item.href.includes('/job_detail/') || item.href.includes('/wapi/zpgeek/job/detail'));
+
+          if (detailLink?.href) {
+            return `BOSS_DETAIL_LINK:${detailLink.href}`;
+          }
+
+          const cards = Array.from(document.querySelectorAll('.job-card-wrapper, .job-list-box li, .job-card-left, .job-primary, .search-job-result li'))
+            .map((node) => clean((node as HTMLElement).innerText))
+            .filter((value) => value.length > 40 && !value.includes('加载中，请稍候'));
+
+          if (cards.length > 0) {
+            return `来源：BOSS直聘搜索结果\n已提取可见职位卡片：\n${cards[0]}`;
           }
         }
 
         return document.body?.innerText || '';
       });
-      const normalized = text.replace(/\s+/g, ' ').trim().slice(0, 20000);
+
+      if (normalized.startsWith('BOSS_DETAIL_LINK:')) {
+        const detailUrl = normalized.replace('BOSS_DETAIL_LINK:', '').trim();
+        this.fileLogger.operation('job_url_detail_link_found', { userId, sourceUrl, detailUrl });
+        await page.goto(detailUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+        await this.waitForRenderedPage(page);
+        normalized = await page.evaluate(() => {
+          const clean = (value?: string | null) => (value || '').replace(/\s+/g, ' ').trim();
+          const textOf = (selector: string) => clean((document.querySelector(selector) as HTMLElement | null)?.innerText);
+          const parts = [
+            textOf('.job-title'),
+            textOf('.name'),
+            textOf('.salary'),
+            textOf('.job-primary'),
+            textOf('.job-sec'),
+            textOf('.job-detail'),
+            textOf('.detail-content'),
+            textOf('.job-detail-section'),
+            textOf('.job-detail-container'),
+            textOf('.job-banner'),
+            textOf('.company-info'),
+            clean(document.body?.innerText),
+          ].filter(Boolean);
+          return `来源：BOSS直聘职位详情页\n${Array.from(new Set(parts)).join('\n')}`;
+        });
+      }
+
+      normalized = normalized.replace(/\s+/g, ' ').trim().slice(0, 20000);
       this.fileLogger.operation('job_url_rendered', {
         userId,
         sourceUrl,
         textLength: normalized.length,
+        preview: normalized.slice(0, 200),
       });
 
       return normalized;
@@ -281,24 +315,20 @@ export class JobsService {
       this.fileLogger.operation('job_url_render_failed', { userId, sourceUrl, errorMessage });
       return undefined;
     } finally {
-      if (browser) {
-        await browser.close().catch(() => undefined);
-      }
+      if (browser) await browser.close().catch(() => undefined);
     }
   }
 
   private validateJdText(jdText?: string | null): { ok: boolean; reason?: string } {
     const text = jdText?.trim();
-    if (!text) {
-      return { ok: false, reason: 'No job description text or readable URL content was provided.' };
-    }
+    if (!text) return { ok: false, reason: 'No job description text or readable URL content was provided.' };
 
     const compact = text.replace(/\s+/g, '');
     const lower = text.toLowerCase();
     const blockerPatterns = [
       '加载中',
       '请稍候',
-      '安全校验',
+      '安全验证',
       'security_check',
       '验证码',
       '登录后查看',
@@ -313,46 +343,127 @@ export class JobsService {
       '职位描述',
       '任职要求',
       '工作职责',
-	      'selected visible job card',
-	      'boss zhipin search result',
-	      'responsibilities',
+      '职位详情页',
+      '职位卡片',
+      '岗位名称',
+      '岗位关键词',
+      'boss直聘搜索页',
+      'responsibilities',
       'requirements',
       'qualifications',
       '薪资',
       '经验',
       '学历',
     ];
-	    const hasBlockerText = blockerPatterns.some((pattern) => lower.includes(pattern.toLowerCase()));
-	    const hasJobSignals = jobSignals.some((signal) => lower.includes(signal.toLowerCase()));
-	    const hasExtractedJobCard = lower.includes('selected visible job card');
-	    const looksLikeGenericNavigation =
-	      lower.includes('热门职位') &&
-	      lower.includes('首页') &&
-	      lower.includes('登录/注册') &&
-	      !hasExtractedJobCard;
+    const hasBlockerText = blockerPatterns.some((pattern) => lower.includes(pattern.toLowerCase()));
+    const hasJobSignals = jobSignals.some((signal) => lower.includes(signal.toLowerCase()));
+    const hasExtractedJobCard = lower.includes('职位卡片') || lower.includes('boss zhipin search result');
+    const looksLikeGenericNavigation =
+      lower.includes('热门职位') &&
+      lower.includes('首页') &&
+      lower.includes('登录/注册') &&
+      !hasExtractedJobCard;
 
-	    if (compact.length < 80) {
-	      return {
-	        ok: false,
-	        reason: 'Fetched content is too short to parse as a job description. Paste the full JD text and reparse.',
-	      };
-	    }
+    if (compact.length < 80) {
+      return {
+        ok: false,
+        reason: 'Fetched content is too short to parse as a job description. Paste the full JD text and reparse.',
+      };
+    }
 
-	    if (looksLikeGenericNavigation) {
-	      return {
-	        ok: false,
-	        reason: 'The URL rendered a generic job search/navigation page, not a specific job. Open a concrete job detail URL or paste the JD text.',
-	      };
-	    }
+    if (looksLikeGenericNavigation) {
+      return {
+        ok: false,
+        reason: 'The URL rendered a generic job search/navigation page, not a specific job detail page.',
+      };
+    }
 
-	    if (hasBlockerText && !hasJobSignals) {
-	      return {
-	        ok: false,
-	        reason: 'The job URL returned a loading/security-check page instead of real JD content. Paste the full JD text and reparse.',
-	      };
-	    }
+    if (hasBlockerText && !hasJobSignals) {
+      return {
+        ok: false,
+        reason: 'The job URL returned a loading/security-check page instead of real JD content.',
+      };
+    }
 
-	    return { ok: true };
+    return { ok: true };
+  }
+
+  private async waitForRenderedPage(page: any) {
+    try {
+      await page.waitForFunction(
+        () => {
+          const text = document.body?.innerText || '';
+          const compact = text.replace(/\s+/g, '');
+          if (compact.length < 120) return false;
+          return !/加载中，请稍候|Loading/i.test(text) || compact.length > 500;
+        },
+        { timeout: 12000 },
+      );
+    } catch {
+      // Some job sites keep scripts pending or require login. Use the best text available.
+    }
+  }
+
+  private buildUrlFallbackJd(sourceUrl: string, renderedText?: string) {
+    const parsed = this.safeParseUrl(sourceUrl);
+    const hostname = parsed?.hostname || '';
+    const query = parsed?.searchParams.get('query') || parsed?.searchParams.get('keyword') || '';
+    const decodedQuery = query ? decodeURIComponent(query) : '';
+    const cityName = this.cityNameFromZhipinCode(parsed?.searchParams.get('city'));
+
+    if (hostname.includes('zhipin.com') && decodedQuery) {
+      return [
+        `岗位名称：${decodedQuery}`,
+        '来源：BOSS直聘搜索页',
+        cityName ? `工作地点：${cityName}` : '',
+        `岗位关键词：${decodedQuery}`,
+        `任职要求：与${decodedQuery}相关的岗位要求，请在岗位详情页补充完整 JD 后点击“保存并重新解析”。`,
+        '解析说明：BOSS直聘搜索结果页当前未向未登录/服务器环境公开具体职位卡片，系统已根据 URL 查询词创建可编辑岗位目标。',
+      ].filter(Boolean).join('\n');
+    }
+
+    if (renderedText?.trim()) return renderedText.trim();
+
+    return `岗位网址：${sourceUrl}\n解析说明：系统无法从该页面读取到完整 JD，请打开具体职位详情页，或粘贴完整岗位描述后重新解析。`;
+  }
+
+  private cleanParsedTitle(title?: string) {
+    if (!title) return title;
+    return title.replace(/^岗位名称[:：]\s*/, '').trim();
+  }
+
+  private safeParseUrl(sourceUrl: string) {
+    try {
+      return new URL(sourceUrl);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private cityNameFromZhipinCode(code?: string | null) {
+    const cities: Record<string, string> = {
+      '101010100': '北京',
+      '101020100': '上海',
+      '101280100': '广州',
+      '101280600': '深圳',
+      '101210100': '杭州',
+      '101030100': '天津',
+      '101110100': '西安',
+      '101190400': '苏州',
+      '101200100': '武汉',
+      '101270100': '成都',
+      '101180100': '郑州',
+      '101040100': '重庆',
+      '101230200': '厦门',
+      '101250100': '长沙',
+      '101120200': '青岛',
+      '101070100': '沈阳',
+      '101090100': '石家庄',
+      '101300100': '南宁',
+      '101240100': '南昌',
+      '101160100': '兰州',
+    };
+    return code ? cities[code] : undefined;
   }
 
   private htmlToText(html: string) {

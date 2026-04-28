@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ResumeTemplate, resumeTemplates } from './ResumePreview';
 
 interface TemplateSelectorProps {
@@ -5,24 +6,22 @@ interface TemplateSelectorProps {
   onSelect: (template: ResumeTemplate) => void;
 }
 
-const swatches: Record<ResumeTemplate, { accent: string; bg: string; rail?: string; dark?: boolean; twoColumn?: boolean }> = {
-  modern: { accent: '#2563eb', bg: '#ffffff' },
-  classic: { accent: '#334155', bg: '#ffffff' },
-  compact: { accent: '#0f766e', bg: '#ffffff' },
-  deedy: { accent: '#0284c7', bg: '#ffffff', twoColumn: true },
-  orbit: { accent: '#334155', bg: '#ffffff', rail: '#1e293b', twoColumn: true },
-  markdown: { accent: '#18181b', bg: '#ffffff' },
-  academic: { accent: '#4f46e5', bg: '#ffffff' },
-  elegant: { accent: '#be123c', bg: '#fff7f8' },
-  typst: { accent: '#0891b2', bg: '#ffffff' },
-  ats: { accent: '#111827', bg: '#ffffff' },
-  executive: { accent: '#b45309', bg: '#fffaf0' },
-  creative: { accent: '#7e22ce', bg: '#faf5ff' },
+const swatches: Record<ResumeTemplate, { accent: string; panel: string; pattern: 'timeline' | 'grid' | 'right' | 'banner' | 'left' | 'single' | 'card' | 'compact' }> = {
+  azurill: { accent: '#2563eb', panel: '#eff6ff', pattern: 'timeline' },
+  bronzor: { accent: '#525252', panel: '#fafaf9', pattern: 'grid' },
+  chikorita: { accent: '#059669', panel: '#ecfdf5', pattern: 'right' },
+  ditto: { accent: '#7c3aed', panel: '#f5f3ff', pattern: 'banner' },
+  gengar: { accent: '#334155', panel: '#f8fafc', pattern: 'left' },
+  onyx: { accent: '#18181b', panel: '#fafafa', pattern: 'single' },
+  pikachu: { accent: '#d97706', panel: '#fffbeb', pattern: 'card' },
+  rhyhorn: { accent: '#0891b2', panel: '#ecfeff', pattern: 'single' },
+  ditgar: { accent: '#be123c', panel: '#fff1f2', pattern: 'left' },
+  meowth: { accent: '#111827', panel: '#ffffff', pattern: 'compact' },
 };
 
 export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {resumeTemplates.map((template) => {
         const swatch = swatches[template.id];
         const active = selected === template.id;
@@ -34,29 +33,8 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
             onClick={() => onSelect(template.id)}
             className={`group overflow-hidden rounded-md border bg-white text-left transition hover:border-slate-400 ${active ? 'border-indigo-600 ring-2 ring-indigo-600 ring-offset-2' : 'border-slate-200'}`}
           >
-            <div className="aspect-[4/5] p-3" style={{ background: swatch.bg }}>
-              <div className="h-full overflow-hidden rounded border border-slate-200 bg-white shadow-sm">
-                {swatch.rail && <div className="h-full w-1/4 float-left" style={{ background: swatch.rail }} />}
-                <div className={swatch.twoColumn ? 'grid h-full grid-cols-[34%_1fr]' : 'h-full'}>
-                  {template.id === 'deedy' && (
-                    <div className="border-r border-slate-200 p-2">
-                      <TinyLine width="70%" color={swatch.accent} />
-                      <TinyBlock rows={5} />
-                    </div>
-                  )}
-                  <div className="p-2">
-                    <div className="mb-2 h-1 w-10 rounded" style={{ background: swatch.accent }} />
-                    <TinyLine width="70%" color="#0f172a" thick />
-                    <TinyLine width="45%" />
-                    <div className="my-2 h-px" style={{ background: swatch.accent }} />
-                    <TinyBlock rows={template.id === 'compact' || template.id === 'ats' ? 7 : 5} />
-                    <div className="mt-2 flex gap-1">
-                      <span className="h-2 w-6 rounded-full" style={{ background: swatch.accent, opacity: 0.18 }} />
-                      <span className="h-2 w-5 rounded-full" style={{ background: swatch.accent, opacity: 0.18 }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="aspect-[4/5] p-3" style={{ background: swatch.panel }}>
+              <TemplateThumb accent={swatch.accent} pattern={swatch.pattern} />
             </div>
             <div className="border-t border-slate-100 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
@@ -72,16 +50,131 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
   );
 }
 
-function TinyLine({ width, color = '#cbd5e1', thick = false }: { width: string; color?: string; thick?: boolean }) {
-  return <div className={`mb-1 rounded ${thick ? 'h-2' : 'h-1.5'}`} style={{ width, background: color }} />;
+function TemplateThumb({ accent, pattern }: { accent: string; pattern: string }) {
+  if (pattern === 'grid') {
+    return (
+      <Paper>
+        <div className="mb-2 text-center">
+          <TinyLine width="48%" color="#111827" thick center />
+          <TinyLine width="64%" center />
+        </div>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div key={index} className="grid grid-cols-[32%_1fr] gap-2 border-t border-slate-200 py-1.5">
+            <TinyLine width="75%" color={accent} />
+            <TinyBlock rows={2} />
+          </div>
+        ))}
+      </Paper>
+    );
+  }
+
+  if (pattern === 'right') {
+    return (
+      <Paper className="grid grid-cols-[1fr_34%]">
+        <div className="p-2">
+          <TinyLine width="70%" color="#111827" thick />
+          <TinyBlock rows={7} />
+        </div>
+        <div className="p-2" style={{ background: accent }}>
+          <TinyCircle />
+          <TinyBlock rows={5} light />
+        </div>
+      </Paper>
+    );
+  }
+
+  if (pattern === 'banner') {
+    return (
+      <Paper>
+        <div className="p-2" style={{ background: accent }}>
+          <TinyLine width="62%" color="rgba(255,255,255,.9)" thick />
+          <TinyLine width="44%" color="rgba(255,255,255,.7)" />
+        </div>
+        <div className="grid grid-cols-[34%_1fr] gap-2 p-2">
+          <TinyBlock rows={5} />
+          <TinyBlock rows={7} />
+        </div>
+      </Paper>
+    );
+  }
+
+  if (pattern === 'left') {
+    return (
+      <Paper className="grid grid-cols-[34%_1fr]">
+        <div className="p-2" style={{ background: accent }}>
+          <TinyCircle light />
+          <TinyBlock rows={6} light />
+        </div>
+        <div className="p-2">
+          <TinyLine width="68%" color="#111827" thick />
+          <TinyBlock rows={8} />
+        </div>
+      </Paper>
+    );
+  }
+
+  if (pattern === 'card') {
+    return (
+      <Paper className="grid grid-cols-[34%_1fr]">
+        <div className="bg-amber-50 p-2">
+          <TinyCircle />
+          <TinyBlock rows={5} />
+        </div>
+        <div className="p-2">
+          <div className="mb-2 rounded-sm p-1.5" style={{ background: accent }}>
+            <TinyLine width="70%" color="rgba(255,255,255,.9)" thick />
+          </div>
+          <TinyBlock rows={7} />
+        </div>
+      </Paper>
+    );
+  }
+
+  if (pattern === 'compact') {
+    return (
+      <Paper>
+        <div className="border-b border-slate-900 p-2 text-center">
+          <TinyLine width="44%" color="#111827" thick center />
+          <TinyLine width="66%" center />
+        </div>
+        <div className="p-2">
+          <TinyBlock rows={11} tight />
+        </div>
+      </Paper>
+    );
+  }
+
+  return (
+    <Paper>
+      <div className="border-b-2 p-2" style={{ borderColor: accent }}>
+        <TinyLine width="62%" color="#111827" thick />
+        <TinyLine width="46%" color={accent} />
+      </div>
+      <div className="p-2">
+        <TinyBlock rows={8} />
+      </div>
+    </Paper>
+  );
 }
 
-function TinyBlock({ rows }: { rows: number }) {
+function Paper({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`h-full overflow-hidden rounded border border-slate-200 bg-white shadow-sm ${className}`}>{children}</div>;
+}
+
+function TinyLine({ width, color = '#cbd5e1', thick = false, center = false }: { width: string; color?: string; thick?: boolean; center?: boolean }) {
+  return <div className={`${center ? 'mx-auto' : ''} mb-1 rounded ${thick ? 'h-2' : 'h-1.5'}`} style={{ width, background: color }} />;
+}
+
+function TinyBlock({ rows, light = false, tight = false }: { rows: number; light?: boolean; tight?: boolean }) {
   return (
-    <div className="space-y-1">
+    <div className={tight ? 'space-y-0.5' : 'space-y-1'}>
       {Array.from({ length: rows }).map((_, index) => (
-        <TinyLine key={index} width={`${92 - (index % 3) * 14}%`} />
+        <TinyLine key={index} width={`${92 - (index % 3) * 14}%`} color={light ? 'rgba(255,255,255,.58)' : '#cbd5e1'} />
       ))}
     </div>
   );
+}
+
+function TinyCircle({ light = false }: { light?: boolean }) {
+  return <div className="mb-2 h-7 w-7 rounded-full" style={{ background: light ? 'rgba(255,255,255,.35)' : '#e2e8f0' }} />;
 }

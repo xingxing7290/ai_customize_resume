@@ -25,7 +25,7 @@ export default function ResumeEditPage() {
   const params = useParams();
   const id = params.id as string;
   const [resume, setResume] = useState<ResumeVersion | null>(null);
-  const [template, setTemplate] = useState<ResumeTemplate>('modern');
+  const [template, setTemplate] = useState<ResumeTemplate>('azurill');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');

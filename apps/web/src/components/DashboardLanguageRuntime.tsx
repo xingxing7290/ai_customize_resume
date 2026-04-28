@@ -267,7 +267,12 @@ function translate(value: string) {
     .replace(/：/g, ':')
     .replace(/，/g, ', ')
     .replace(/。/g, '.')
-    .replace(/、/g, ', ');
+    .replace(/、/g, ', ')
+    .replace(/和/g, ' and ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/Click“([^”]+)”CreateyourfirstProfile\.?/g, 'Click "$1" to create your first profile.')
+    .replace(/Createyourfirst/g, 'Create your first ')
+    .replace(/\s{2,}/g, ' ');
 
   return `${leading}${next}${trailing}`;
 }

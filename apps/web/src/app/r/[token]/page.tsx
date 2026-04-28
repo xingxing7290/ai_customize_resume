@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { normalizeTemplate, ResumePreview, ResumePreviewData, resumeTemplates } from '@/components/resume/ResumePreview';
+import { normalizeTemplate, ResumePreview, ResumePreviewData, ResumeTemplate } from '@/components/resume/ResumePreview';
+import { TemplateSelector } from '@/components/resume/TemplateSelector';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
 
@@ -13,7 +14,7 @@ export default function PublicResumePage() {
   const initialTemplate = useMemo(() => normalizeTemplate(searchParams.get('style')), [searchParams]);
 
   const [resume, setResume] = useState<ResumePreviewData | null>(null);
-  const [template, setTemplate] = useState(initialTemplate);
+  const [template, setTemplate] = useState<ResumeTemplate>(initialTemplate);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -66,23 +67,14 @@ export default function PublicResumePage() {
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6">
-      <div className="mx-auto mb-4 flex max-w-[820px] flex-col gap-3 rounded border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {resumeTemplates.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTemplate(item.id)}
-              className={`rounded border px-3 py-1.5 text-sm ${template === item.id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'}`}
-              title={item.description}
-            >
-              {item.label}
-            </button>
-          ))}
+      <div className="mx-auto mb-4 max-w-[1100px] rounded border border-slate-200 bg-white p-4">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-base font-semibold text-slate-900">选择简历样式</h1>
+          <button type="button" onClick={handleDownloadPdf} className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+            下载 PDF
+          </button>
         </div>
-        <button type="button" onClick={handleDownloadPdf} className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-          下载 PDF
-        </button>
+        <TemplateSelector selected={template} onSelect={setTemplate} />
       </div>
       <ResumePreview resume={resume} template={template} />
     </main>

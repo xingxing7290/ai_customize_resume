@@ -31,6 +31,17 @@ export class PublishController {
     return this.publishService.publish(userId, versionId, dto.isPublic);
   }
 
+  @Post(':versionId/regenerate')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '重新生成公开链接' })
+  regenerate(
+    @CurrentUser('id') userId: string,
+    @Param('versionId') versionId: string,
+  ) {
+    return this.publishService.regenerateToken(userId, versionId);
+  }
+
   @Delete(':versionId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ResumeItem, ResumePreview, ResumePreviewData, ResumeTemplate, resumeTemplates } from '@/components/resume/ResumePreview';
+import { ResumeItem, ResumePreview, ResumePreviewData, ResumeTemplate, normalizeTemplate, resumeTemplates } from '@/components/resume/ResumePreview';
+import { TemplateSelector } from '@/components/resume/TemplateSelector';
 import { api } from '@/lib/api';
 
 interface ResumeVersion extends ResumePreviewData {
@@ -28,6 +29,7 @@ export default function ResumeEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [publicToken, setPublicToken] = useState('');
   const [publicUrl, setPublicUrl] = useState('');
   const [editForm, setEditForm] = useState({
     summary: '',
@@ -39,14 +41,16 @@ export default function ResumeEditPage() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem('resumeTemplate') as ResumeTemplate | null;
-    if (saved === 'modern' || saved === 'classic' || saved === 'compact') setTemplate(saved);
+    setTemplate(normalizeTemplate(localStorage.getItem('resumeTemplate')));
     loadResume();
   }, [id]);
 
   useEffect(() => {
     localStorage.setItem('resumeTemplate', template);
-  }, [template]);
+    if (publicToken) {
+      setPublicUrl(`${WEB_BASE_URL}/r/${publicToken}?style=${template}`);
+    }
+  }, [template, publicToken]);
 
   const skills = useMemo(() => lines(editForm.skillsText), [editForm.skillsText]);
   const certificates = useMemo(() => lines(editForm.certificatesText), [editForm.certificatesText]);
@@ -80,6 +84,13 @@ export default function ResumeEditPage() {
         certificatesText: (data.contentCertificates || []).join('\n'),
         selfEvaluation: data.contentSelfEvaluation || '',
       });
+      const publishRecord = await api.publish.get(id);
+      if (publishRecord.data?.publicToken && publishRecord.data?.isPublic) {
+        setPublicToken(publishRecord.data.publicToken);
+      } else {
+        setPublicToken('');
+        setPublicUrl('');
+      }
     } else {
       setMessage(result.message || '简历加载失败');
     }
@@ -129,6 +140,7 @@ export default function ResumeEditPage() {
   const handlePublish = async () => {
     const result = await api.publish.publish(id);
     if (result.data?.publicToken) {
+      setPublicToken(result.data.publicToken);
       const url = `${WEB_BASE_URL}/r/${result.data.publicToken}?style=${template}`;
       setPublicUrl(url);
       setMessage(`已发布公开链接：${url}`);
@@ -136,6 +148,19 @@ export default function ResumeEditPage() {
       return;
     }
     setMessage(result.message || '发布失败');
+  };
+
+  const handleRegeneratePublicUrl = async () => {
+    if (!confirm('确定重新生成公开链接吗？旧链接将失效。')) return;
+    const result = await api.publish.regenerate(id);
+    if (result.data?.publicToken) {
+      setPublicToken(result.data.publicToken);
+      const url = `${WEB_BASE_URL}/r/${result.data.publicToken}?style=${template}`;
+      setPublicUrl(url);
+      setMessage(`已重新生成公开链接：${url}`);
+      return;
+    }
+    setMessage(result.message || '重新生成链接失败');
   };
 
   const handleDownloadPdf = async () => {
@@ -190,6 +215,7 @@ export default function ResumeEditPage() {
           <button type="button" onClick={handleRegenerate} disabled={saving} className="btn-secondary">重新生成</button>
           <button type="button" onClick={handleCopy} className="btn-secondary">复制版本</button>
           <button type="button" onClick={handlePublish} className="btn-primary bg-emerald-600 hover:bg-emerald-700">发布</button>
+          <button type="button" onClick={handleRegeneratePublicUrl} className="btn-secondary">重新生成链接</button>
           <button type="button" onClick={handleDownloadPdf} className="btn-secondary">下载 PDF</button>
         </div>
       </div>
@@ -198,20 +224,11 @@ export default function ResumeEditPage() {
       {publicUrl && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 break-all">{publicUrl}</a>}
 
       <section className="card p-4">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">简历样式</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {resumeTemplates.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTemplate(item.id)}
-              className={`rounded border p-3 text-left ${template === item.id ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-slate-400'}`}
-            >
-              <span className="block font-medium text-slate-900">{item.label}</span>
-              <span className="mt-1 block text-xs text-slate-500">{item.description}</span>
-            </button>
-          ))}
+        <div className="mb-3">
+          <h2 className="text-base font-semibold text-slate-900">简历样式</h2>
+          <p className="mt-1 text-sm text-slate-500">参考 awesome-resume-for-chinese 中常见中文简历排版方向，点击缩略图即可在右侧预览和 PDF 中同步生效。</p>
         </div>
+        <TemplateSelector selected={template} onSelect={setTemplate} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

@@ -154,6 +154,7 @@ export const api = {
   publish: {
     publish: (versionId: string) =>
       apiFetch<any>(`/publish/${versionId}`, { method: 'POST', body: JSON.stringify({ isPublic: true }) }),
+    regenerate: (versionId: string) => apiFetch<any>(`/publish/${versionId}/regenerate`, { method: 'POST' }),
     get: (versionId: string) => apiFetch<any>(`/publish/${versionId}`),
     unpublish: (versionId: string) => apiFetch<any>(`/publish/${versionId}`, { method: 'DELETE' }),
   },

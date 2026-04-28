@@ -1,11 +1,12 @@
-import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { PdfService } from './pdf.service';
-import { PrismaService } from '../../prisma/prisma.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { FileLoggerService } from '../../common/logger/file-logger.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PdfService } from './pdf.service';
 
 @ApiTags('pdf')
 @Controller('pdf')
@@ -13,15 +14,17 @@ export class PdfController {
   constructor(
     private pdfService: PdfService,
     private prisma: PrismaService,
+    private fileLogger: FileLoggerService,
   ) {}
 
   @Get(':versionId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: '获取简历打印页面' })
+  @ApiOperation({ summary: 'Download resume PDF' })
   async getPrintPage(
     @CurrentUser('id') userId: string,
     @Param('versionId') versionId: string,
+    @Query('style') style: string | undefined,
     @Res() res: Response,
   ) {
     const resume = await this.prisma.resumeVersion.findUnique({
@@ -45,37 +48,25 @@ export class PdfController {
       return;
     }
 
-    const resumeData = {
-      profile: {
-        name: resume.profile.name,
-        email: resume.profile.email,
-        phone: resume.profile.phone ?? undefined,
-        location: resume.profile.location ?? undefined,
-        summary: resume.profile.summary ?? undefined,
-      },
-      contentSummary: resume.contentSummary ?? undefined,
-      contentSkills: resume.contentSkills,
-      contentWorkExperiences: resume.contentWorkExperiences,
-      contentProjectExperiences: resume.contentProjectExperiences,
-      contentCertificates: resume.contentCertificates,
-      contentSelfEvaluation: resume.contentSelfEvaluation ?? undefined,
-      jobTarget: resume.jobTarget ? {
-        parsedJobTitle: resume.jobTarget.parsedJobTitle ?? undefined,
-        parsedCompanyName: resume.jobTarget.parsedCompanyName ?? undefined,
-      } : undefined,
-    };
+    const pdf = await this.pdfService.generatePdf(this.toResumeData(resume), style);
+    this.fileLogger.operation('resume_pdf_downloaded', {
+      userId,
+      versionId,
+      style: this.pdfService.normalizeTemplate(style),
+      bytes: pdf.length,
+    });
 
-    const html = this.pdfService.generateHtml(resumeData);
-
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="resume-${versionId}.pdf"`);
+    res.send(pdf);
   }
 
   @Get('public/:token')
   @Public()
-  @ApiOperation({ summary: '获取公开简历打印页面' })
+  @ApiOperation({ summary: 'Download public resume PDF' })
   async getPublicPrintPage(
     @Param('token') token: string,
+    @Query('style') style: string | undefined,
     @Res() res: Response,
   ) {
     const publishRecord = await this.prisma.resumePublishRecord.findUnique({
@@ -104,8 +95,21 @@ export class PdfController {
     }
 
     const resume = publishRecord.version;
+    const pdf = await this.pdfService.generatePdf(this.toResumeData(resume), style);
+    this.fileLogger.operation('public_resume_pdf_downloaded', {
+      token,
+      versionId: resume.id,
+      style: this.pdfService.normalizeTemplate(style),
+      bytes: pdf.length,
+    });
 
-    const resumeData = {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="resume-${token}.pdf"`);
+    res.send(pdf);
+  }
+
+  private toResumeData(resume: any) {
+    return {
       profile: {
         name: resume.profile.name,
         email: resume.profile.email,
@@ -119,15 +123,12 @@ export class PdfController {
       contentProjectExperiences: resume.contentProjectExperiences,
       contentCertificates: resume.contentCertificates,
       contentSelfEvaluation: resume.contentSelfEvaluation ?? undefined,
-      jobTarget: resume.jobTarget ? {
-        parsedJobTitle: resume.jobTarget.parsedJobTitle ?? undefined,
-        parsedCompanyName: resume.jobTarget.parsedCompanyName ?? undefined,
-      } : undefined,
+      jobTarget: resume.jobTarget
+        ? {
+            parsedJobTitle: resume.jobTarget.parsedJobTitle ?? undefined,
+            parsedCompanyName: resume.jobTarget.parsedCompanyName ?? undefined,
+          }
+        : undefined,
     };
-
-    const html = this.pdfService.generateHtml(resumeData);
-
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(html);
   }
 }

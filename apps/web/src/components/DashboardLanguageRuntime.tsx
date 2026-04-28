@@ -147,6 +147,21 @@ const replacements: Array<[RegExp, string]> = [
   [/主档案/g, 'Profile'],
   [/岗位输入/g, 'Job Input'],
   [/简历生成/g, 'Resume Generation'],
+  [/管理/g, 'Management'],
+  [/维护/g, 'Maintain'],
+  [/基础信息/g, 'Basic Information'],
+  [/教育/g, 'Education'],
+  [/工作/g, 'Work'],
+  [/项目/g, 'Projects'],
+  [/技能/g, 'Skills'],
+  [/证书/g, 'Certificates'],
+  [/新建档案/g, 'New Profile'],
+  [/暂无档案/g, 'No profiles yet'],
+  [/点击/g, 'Click'],
+  [/创建/g, 'Create'],
+  [/你的/g, 'your'],
+  [/第一份/g, 'first'],
+  [/档案/g, 'Profile'],
   [/管理档案/g, 'Manage Profiles'],
   [/管理岗位/g, 'Manage Jobs'],
   [/管理简历/g, 'Manage Resumes'],
@@ -246,7 +261,8 @@ function translate(value: string) {
     next = next.replace(pattern, replacement);
   }
   next = next
-    .replace(/鈫?/g, '->')
+    .replace(/鈫\?/g, '->')
+    .replace(/→/g, '->')
     .replace(/锛?/g, ':')
     .replace(/：/g, ':')
     .replace(/，/g, ', ')

@@ -211,7 +211,10 @@ function translateTextNodes(language: AppLanguage) {
 
     if (!textStore.has(node)) textStore.set(node, node.nodeValue || '');
     const original = textStore.get(node) || '';
-    node.nodeValue = language === 'en' ? translate(original) : original;
+    const next = language === 'en' ? translate(original) : original;
+    if (node.nodeValue !== next) {
+      node.nodeValue = next;
+    }
   }
 }
 
@@ -222,7 +225,10 @@ function translateAttributes(language: AppLanguage) {
     for (const attr of ['placeholder', 'title', 'aria-label']) {
       const value = element.getAttribute(attr);
       if (value && !stored[attr]) stored[attr] = value;
-      if (stored[attr]) element.setAttribute(attr, language === 'en' ? translate(stored[attr]) : stored[attr]);
+      if (stored[attr]) {
+        const next = language === 'en' ? translate(stored[attr]) : stored[attr];
+        if (element.getAttribute(attr) !== next) element.setAttribute(attr, next);
+      }
     }
     attrStore.set(element, stored);
   }

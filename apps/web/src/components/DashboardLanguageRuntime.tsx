@@ -263,7 +263,7 @@ function translate(value: string) {
   next = next
     .replace(/鈫\?/g, '->')
     .replace(/→/g, '->')
-    .replace(/锛?/g, ':')
+    .replace(/锛\?/g, ':')
     .replace(/：/g, ':')
     .replace(/，/g, ', ')
     .replace(/。/g, '.')

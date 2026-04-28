@@ -3,95 +3,116 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { useLanguage } from '@/lib/language';
 import { api } from '@/lib/api';
+
+const copy = {
+  zh: {
+    brand: 'AI 简历定制',
+    nav: [
+      { href: '/profiles', label: '主档案', short: '档案' },
+      { href: '/jobs', label: '岗位输入', short: '岗位' },
+      { href: '/resumes', label: '简历生成', short: '简历' },
+    ],
+    logout: '退出登录',
+  },
+  en: {
+    brand: 'AI Resume Studio',
+    nav: [
+      { href: '/profiles', label: 'Profiles', short: 'Profiles' },
+      { href: '/jobs', label: 'Jobs', short: 'Jobs' },
+      { href: '/resumes', label: 'Resumes', short: 'Resumes' },
+    ],
+    logout: 'Sign Out',
+  },
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { language, setLanguage } = useLanguage();
+  const t = copy[language];
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     await api.auth.logout();
     router.push('/login');
   };
 
-  const navItems = [
-    { href: '/profiles', label: '主档案', short: '档案' },
-    { href: '/jobs', label: '岗位输入', short: '岗位' },
-    { href: '/resumes', label: '简历生成', short: '简历' },
-  ];
-
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+      <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 justify-between">
             <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
+              <div className="flex flex-shrink-0 items-center">
                 <Link href="/profiles" className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">AI</span>
+                  <div className="gradient-primary flex h-8 w-8 items-center justify-center rounded-lg">
+                    <span className="text-sm font-bold text-white">AI</span>
                   </div>
-                  <span className="text-lg font-semibold text-slate-800">AI 简历定制</span>
+                  <span className="text-lg font-semibold text-slate-800">{t.brand}</span>
                 </Link>
               </div>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-1">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      pathname.startsWith(item.href)
-                        ? 'bg-indigo-50 text-indigo-600'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                    }`}
-                  >
+                {t.nav.map((item) => (
+                  <NavLink key={item.href} href={item.href} active={pathname.startsWith(item.href)}>
                     {item.label}
-                  </Link>
+                  </NavLink>
                 ))}
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <LanguageSelector language={language} onChange={setLanguage} compact />
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-800"
               >
-                退出登录
+                {t.logout}
               </button>
             </div>
           </div>
-          <div className="sm:hidden grid grid-cols-3 gap-2 pb-3">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`text-center px-3 py-2 rounded-lg text-sm font-medium ${
-                  pathname.startsWith(item.href)
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-slate-600 bg-slate-50'
-                }`}
-              >
+          <div className="grid grid-cols-3 gap-2 pb-3 sm:hidden">
+            {t.nav.map((item) => (
+              <NavLink key={item.href} href={item.href} active={pathname.startsWith(item.href)} mobile>
                 {item.short}
-              </Link>
+              </NavLink>
             ))}
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="animate-fade-in">{children}</div>
       </main>
     </div>
+  );
+}
+
+function NavLink({ href, active, mobile = false, children }: { href: string; active: boolean; mobile?: boolean; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className={
+        mobile
+          ? `rounded-lg px-3 py-2 text-center text-sm font-medium ${active ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-600'}`
+          : `inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-all ${active ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`
+      }
+    >
+      {children}
+    </Link>
   );
 }

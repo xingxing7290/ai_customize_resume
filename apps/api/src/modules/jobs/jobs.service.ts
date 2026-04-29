@@ -1,8 +1,38 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { execFile } from 'child_process';
+import { existsSync } from 'fs';
+import { join, resolve } from 'path';
+import { promisify } from 'util';
 import { FileLoggerService } from '../../common/logger/file-logger.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { CreateJobTargetDto, UpdateJobTargetDto } from './dto';
+
+const execFileAsync = promisify(execFile);
+
+type JobUrlFields = {
+  jobTitle?: string | null;
+  companyName?: string | null;
+  salary?: string | null;
+  experienceRequirement?: string | null;
+  educationRequirement?: string | null;
+  location?: string | null;
+  responsibilities?: string[];
+  requirements?: string[];
+  techStack?: string[];
+  benefits?: string[];
+};
+
+type JobUrlFetchResult = {
+  ok?: boolean;
+  url?: string;
+  fields?: JobUrlFields;
+  rawTextLength?: number;
+  cleanedTextLength?: number;
+  cleanedText?: string;
+  diagnostics?: Record<string, unknown>;
+  error?: string | null;
+};
 
 @Injectable()
 export class JobsService {
@@ -13,7 +43,8 @@ export class JobsService {
   ) {}
 
   async create(userId: string, dto: CreateJobTargetDto) {
-    const jdText = await this.resolveJdText(userId, dto.sourceUrl, dto.rawJdText);
+    const resolved = await this.resolveJdText(userId, dto.sourceUrl, dto.rawJdText);
+    const jdText = resolved.text;
     const validation = this.validateJdText(jdText);
     const job = await this.prisma.jobTarget.create({
       data: {
@@ -22,6 +53,7 @@ export class JobsService {
         rawJdText: jdText,
         status: validation.ok ? 'PARSING' : 'PARSE_FAILED',
         parseError: validation.ok ? null : validation.reason,
+        ...this.buildParsedFieldUpdate(resolved.structured?.fields),
       },
     });
 
@@ -42,7 +74,7 @@ export class JobsService {
       return job;
     }
 
-    return this.parseAndUpdate(userId, job.id, jdText!);
+    return this.parseAndUpdate(userId, job.id, jdText!, resolved.structured?.fields);
   }
 
   async findAll(userId: string) {
@@ -76,7 +108,8 @@ export class JobsService {
 
   async reparse(userId: string, id: string) {
     const job = await this.findOne(userId, id);
-    const jdText = await this.resolveJdText(userId, job.sourceUrl, job.rawJdText);
+    const resolved = await this.resolveJdText(userId, job.sourceUrl, job.rawJdText);
+    const jdText = resolved.text;
     const validation = this.validateJdText(jdText);
 
     if (!validation.ok) {
@@ -98,6 +131,8 @@ export class JobsService {
           parsedRequirements: null,
           parsedTechStack: null,
           parsedSalary: null,
+          parsedExperienceRequirement: null,
+          parsedEducationRequirement: null,
           parsedBenefits: null,
           parseError: validation.reason,
         },
@@ -110,26 +145,33 @@ export class JobsService {
         rawJdText: jdText,
         status: 'PARSING',
         parseError: null,
+        ...this.buildParsedFieldUpdate(resolved.structured?.fields),
       },
     });
 
-    return this.parseAndUpdate(userId, id, jdText!);
+    return this.parseAndUpdate(userId, id, jdText!, resolved.structured?.fields);
   }
 
-  private async parseAndUpdate(userId: string, jobTargetId: string, jdText: string) {
+  private async parseAndUpdate(userId: string, jobTargetId: string, jdText: string, structuredFields?: JobUrlFields) {
     try {
       const parsed = await this.aiService.parseJobDescription(userId, jdText, jobTargetId);
+      const structuredUpdate = this.buildParsedFieldUpdate(structuredFields);
 
       const updated = await this.prisma.jobTarget.update({
         where: { id: jobTargetId },
         data: {
           status: 'PARSE_SUCCESS',
-          parsedJobTitle: this.cleanParsedTitle(parsed.jobTitle),
-          parsedCompanyName: parsed.companyName,
-          parsedLocation: parsed.location,
-          parsedResponsibilities: JSON.stringify(parsed.responsibilities || []),
-          parsedRequirements: JSON.stringify(parsed.requirements || []),
-          parsedTechStack: JSON.stringify(parsed.techStack || parsed.keywords || []),
+          parsedJobTitle: this.cleanParsedTitle(structuredFields?.jobTitle || parsed.jobTitle),
+          parsedCompanyName: structuredFields?.companyName || parsed.companyName,
+          parsedLocation: structuredFields?.location || parsed.location,
+          parsedResponsibilities: JSON.stringify(this.preferArray(structuredFields?.responsibilities, parsed.responsibilities)),
+          parsedRequirements: JSON.stringify(this.preferArray(structuredFields?.requirements, parsed.requirements)),
+          parsedTechStack: JSON.stringify(this.preferArray(structuredFields?.techStack, parsed.techStack || parsed.keywords)),
+          parsedSalary: structuredFields?.salary || parsed.salary,
+          parsedExperienceRequirement: structuredFields?.experienceRequirement || parsed.experienceRequirement,
+          parsedEducationRequirement: structuredFields?.educationRequirement || parsed.educationRequirement,
+          parsedBenefits: JSON.stringify(this.preferArray(structuredFields?.benefits, parsed.benefits)),
+          ...structuredUpdate,
           parseError: null,
         },
       });
@@ -158,11 +200,21 @@ export class JobsService {
         beforeLength: rawJdText.trim().length,
         afterLength: cleaned.length,
       });
-      return cleaned;
+      return { text: cleaned };
     }
-    if (!sourceUrl?.trim()) return undefined;
+    if (!sourceUrl?.trim()) return { text: undefined };
 
     const normalizedUrl = sourceUrl.trim();
+    const structured = await this.fetchJobUrlWithPython(userId, normalizedUrl);
+    if (structured?.ok && structured.cleanedText && this.validateJdText(structured.cleanedText).ok) {
+      this.fileLogger.operation('job_url_python_used', {
+        userId,
+        sourceUrl: normalizedUrl,
+        textLength: structured.cleanedText.length,
+        fields: this.summarizeUrlFields(structured.fields),
+      });
+      return { text: structured.cleanedText, structured };
+    }
 
     try {
       const response = await fetch(normalizedUrl, {
@@ -185,7 +237,13 @@ export class JobsService {
       });
 
       const cleanedText = this.sanitizeJobText(text);
-      if (this.validateJdText(cleanedText).ok) return cleanedText;
+      const fetchedStructured = this.extractStructuredFieldsFromText(normalizedUrl, cleanedText || text);
+      if (this.validateJdText(cleanedText).ok) {
+        return {
+          text: this.buildStructuredJdText(normalizedUrl, fetchedStructured.fields || {}, cleanedText),
+          structured: this.mergeStructuredResult(structured, fetchedStructured),
+        };
+      }
 
       this.fileLogger.operation('job_url_fetch_unusable', {
         userId,
@@ -195,7 +253,13 @@ export class JobsService {
 
       const renderedText = await this.renderUrlToText(userId, normalizedUrl);
       const cleanedRenderedText = renderedText ? this.sanitizeJobText(renderedText) : renderedText;
-      if (this.validateJdText(cleanedRenderedText).ok) return cleanedRenderedText;
+      const renderedStructured = this.extractStructuredFieldsFromText(normalizedUrl, cleanedRenderedText || renderedText || '');
+      if (this.validateJdText(cleanedRenderedText).ok) {
+        return {
+          text: this.buildStructuredJdText(normalizedUrl, renderedStructured.fields || {}, cleanedRenderedText || renderedText || ''),
+          structured: this.mergeStructuredResult(structured, renderedStructured),
+        };
+      }
 
       const fallback = this.buildUrlFallbackJd(normalizedUrl, cleanedRenderedText || cleanedText);
       this.fileLogger.operation('job_url_fallback_built', {
@@ -203,17 +267,322 @@ export class JobsService {
         sourceUrl: normalizedUrl,
         textLength: fallback.length,
       });
-      return fallback;
+      return { text: fallback, structured };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.fileLogger.operation('job_url_fetch_failed', { userId, sourceUrl: normalizedUrl, message });
 
       const renderedText = await this.renderUrlToText(userId, normalizedUrl);
       const cleanedRenderedText = renderedText ? this.sanitizeJobText(renderedText) : renderedText;
-      if (this.validateJdText(cleanedRenderedText).ok) return cleanedRenderedText;
+      const renderedStructured = this.extractStructuredFieldsFromText(normalizedUrl, cleanedRenderedText || renderedText || '');
+      if (this.validateJdText(cleanedRenderedText).ok) {
+        return {
+          text: this.buildStructuredJdText(normalizedUrl, renderedStructured.fields || {}, cleanedRenderedText || renderedText || ''),
+          structured: this.mergeStructuredResult(structured, renderedStructured),
+        };
+      }
 
-      return this.buildUrlFallbackJd(normalizedUrl, cleanedRenderedText);
+      return { text: this.buildUrlFallbackJd(normalizedUrl, cleanedRenderedText), structured };
     }
+  }
+
+  private async fetchJobUrlWithPython(userId: string, sourceUrl: string): Promise<JobUrlFetchResult | undefined> {
+    const scriptPath = this.resolveJobFetcherScript();
+    if (!scriptPath) {
+      this.fileLogger.operation('job_url_python_missing', { userId, sourceUrl });
+      return undefined;
+    }
+
+    const pythonCandidates = [
+      process.env.JOB_FETCHER_PYTHON,
+      process.platform === 'win32' ? 'python' : 'python3',
+      'python',
+    ].filter(Boolean) as string[];
+
+    for (const python of Array.from(new Set(pythonCandidates))) {
+      try {
+        const { stdout, stderr } = await execFileAsync(
+          python,
+          [scriptPath, sourceUrl, '--render', '--timeout', String(Number(process.env.JOB_FETCHER_TIMEOUT_SECONDS || 25))],
+          {
+            timeout: Number(process.env.JOB_FETCHER_PROCESS_TIMEOUT_MS || 45000),
+            maxBuffer: 8 * 1024 * 1024,
+            windowsHide: true,
+          },
+        );
+        const parsed = JSON.parse(stdout.trim()) as JobUrlFetchResult;
+        this.fileLogger.operation('job_url_python_finished', {
+          userId,
+          sourceUrl,
+          python,
+          ok: Boolean(parsed.ok),
+          rawTextLength: parsed.rawTextLength,
+          cleanedTextLength: parsed.cleanedTextLength,
+          fields: this.summarizeUrlFields(parsed.fields),
+          diagnostics: parsed.diagnostics,
+          stderr: stderr?.slice(0, 1000) || undefined,
+        });
+        return parsed;
+      } catch (error) {
+        const maybeWithOutput = error as Error & { stdout?: string; stderr?: string };
+        if (maybeWithOutput.stdout?.trim()) {
+          try {
+            const parsed = JSON.parse(maybeWithOutput.stdout.trim()) as JobUrlFetchResult;
+            this.fileLogger.operation('job_url_python_finished', {
+              userId,
+              sourceUrl,
+              python,
+              ok: Boolean(parsed.ok),
+              rawTextLength: parsed.rawTextLength,
+              cleanedTextLength: parsed.cleanedTextLength,
+              fields: this.summarizeUrlFields(parsed.fields),
+              diagnostics: parsed.diagnostics,
+              stderr: maybeWithOutput.stderr?.slice(0, 1000) || undefined,
+            });
+            return parsed;
+          } catch {
+            // Fall through to regular failure logging.
+          }
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        this.fileLogger.operation('job_url_python_failed', {
+          userId,
+          sourceUrl,
+          python,
+          errorMessage: message,
+        });
+      }
+    }
+
+    return undefined;
+  }
+
+  private resolveJobFetcherScript() {
+    const candidates = [
+      resolve(process.cwd(), 'scripts', 'job_url_fetcher.py'),
+      resolve(process.cwd(), 'apps', 'api', 'scripts', 'job_url_fetcher.py'),
+      resolve(__dirname, '..', '..', '..', 'scripts', 'job_url_fetcher.py'),
+    ];
+    return candidates.find((candidate) => existsSync(candidate));
+  }
+
+  private buildParsedFieldUpdate(fields?: JobUrlFields) {
+    if (!fields) return {};
+    return {
+      parsedJobTitle: fields.jobTitle || undefined,
+      parsedCompanyName: fields.companyName || undefined,
+      parsedLocation: fields.location || undefined,
+      parsedSalary: fields.salary || undefined,
+      parsedExperienceRequirement: fields.experienceRequirement || undefined,
+      parsedEducationRequirement: fields.educationRequirement || undefined,
+      parsedResponsibilities: fields.responsibilities?.length ? JSON.stringify(fields.responsibilities) : undefined,
+      parsedRequirements: fields.requirements?.length ? JSON.stringify(fields.requirements) : undefined,
+      parsedTechStack: fields.techStack?.length ? JSON.stringify(fields.techStack) : undefined,
+      parsedBenefits: fields.benefits?.length ? JSON.stringify(fields.benefits) : undefined,
+    };
+  }
+
+  private preferArray(primary?: string[] | null, fallback?: string[] | null) {
+    return primary?.length ? primary : fallback || [];
+  }
+
+  private summarizeUrlFields(fields?: JobUrlFields) {
+    if (!fields) return undefined;
+    return {
+      jobTitle: fields.jobTitle,
+      companyName: fields.companyName,
+      salary: fields.salary,
+      experienceRequirement: fields.experienceRequirement,
+      educationRequirement: fields.educationRequirement,
+      location: fields.location,
+      responsibilitiesCount: fields.responsibilities?.length || 0,
+      requirementsCount: fields.requirements?.length || 0,
+      techStackCount: fields.techStack?.length || 0,
+    };
+  }
+
+  private mergeStructuredResult(primary?: JobUrlFetchResult, fallback?: JobUrlFetchResult): JobUrlFetchResult | undefined {
+    if (!primary && !fallback) return undefined;
+    const fields = this.mergeJobUrlFields(primary?.fields, fallback?.fields);
+    return {
+      ok: Boolean(primary?.ok || fallback?.ok),
+      url: primary?.url || fallback?.url,
+      fields,
+      rawTextLength: primary?.rawTextLength || fallback?.rawTextLength,
+      cleanedTextLength: primary?.cleanedTextLength || fallback?.cleanedTextLength,
+      cleanedText: primary?.cleanedText || fallback?.cleanedText,
+      diagnostics: {
+        ...(fallback?.diagnostics || {}),
+        ...(primary?.diagnostics || {}),
+      },
+      error: primary?.error || fallback?.error,
+    };
+  }
+
+  private mergeJobUrlFields(primary?: JobUrlFields, fallback?: JobUrlFields): JobUrlFields {
+    return {
+      jobTitle: primary?.jobTitle || fallback?.jobTitle,
+      companyName: primary?.companyName || fallback?.companyName,
+      salary: primary?.salary || fallback?.salary,
+      experienceRequirement: primary?.experienceRequirement || fallback?.experienceRequirement,
+      educationRequirement: primary?.educationRequirement || fallback?.educationRequirement,
+      location: primary?.location || fallback?.location,
+      responsibilities: primary?.responsibilities?.length ? primary.responsibilities : fallback?.responsibilities || [],
+      requirements: primary?.requirements?.length ? primary.requirements : fallback?.requirements || [],
+      techStack: primary?.techStack?.length ? primary.techStack : fallback?.techStack || [],
+      benefits: primary?.benefits?.length ? primary.benefits : fallback?.benefits || [],
+    };
+  }
+
+  private extractStructuredFieldsFromText(sourceUrl: string, text: string): JobUrlFetchResult {
+    const titleCompany = text.match(/([^\n]{2,50}?)招聘[_-]([^\n]{2,80}?)招聘/);
+    const salary = this.matchFirst(text, [
+      /薪资待遇[:：]\s*([^\n]+)/,
+      /(\d+(?:\.\d+)?\s*[-~至]\s*\d+(?:\.\d+)?\s*(?:万|K|k)(?:·\d+薪)?)/,
+      /(面议)/,
+    ]);
+    const experienceRequirement = this.matchFirst(text, [
+      /工作经验要求[:：]\s*([^\n]+)/,
+      /(\d+\s*-\s*\d+\s*年|\d+年以上|\d+年及以上|经验不限|应届(?:生|毕业生)?|在校\/应届)/,
+    ]);
+    const educationRequirement = this.matchFirst(text, [
+      /学历要求[:：]\s*([^\n]+)/,
+      /(博士|硕士|本科|大专|中专|高中|学历不限)/,
+    ]);
+    const location = this.matchFirst(text, [
+      /工作地点\s*\n?(.{2,60}?)(?:\s*以担保|\s*公司信息|\n|$)/,
+      /工作地点[:：]\s*(.{2,60}?)(?:\s*以担保|\s*公司信息|\n|$)/,
+      /(北京|上海|广州|深圳|杭州|成都|武汉|西安|苏州|南京|天津|重庆|郑州|长沙|青岛|沈阳)[^\n\s]{0,20}/,
+    ]);
+    const url = this.safeParseUrl(sourceUrl);
+    const queryTitle = url?.searchParams.get('query') ? decodeURIComponent(url.searchParams.get('query') || '') : undefined;
+    const jobTitle = this.cleanParsedTitle(
+      titleCompany?.[1]
+        || this.matchFirst(text, [
+          /^([^\n]{2,50}?(?:工程师|开发|经理|主管|专员|实习生|架构师|设计师|顾问|运维|测试))招聘/m,
+          /(?:举报|APP|登录\/注册)\s*([\u4e00-\u9fa5A-Za-z0-9+#/（）()·\-\s]{2,40}?(?:工程师|开发|经理|主管|专员|实习生|架构师|设计师|顾问|运维|测试))\s*(?:\d|面议|北京|上海|广州|深圳)/,
+          /([\u4e00-\u9fa5A-Za-z0-9+#/（）()·\-\s]{2,40}?(?:工程师|开发|经理|主管|专员|实习生|架构师|设计师|顾问|运维|测试))\s*(?:\d+(?:\.\d+)?\s*[-~至]\s*\d+(?:\.\d+)?\s*(?:万|K|k)|面议)/,
+          /岗位名称[:：]\s*([^\n]{2,80})/,
+          /职位[:：]\s*([^\n]{2,80})/,
+        ])
+        || queryTitle,
+    );
+    const companyNameRaw = titleCompany?.[2]
+      || this.matchFirst(text, [
+        /公司名称[:：]\s*([^\n]{2,80})/,
+        /公司信息\s*(.{2,80}?有限责任公司)/,
+        /公司信息\s*(.{2,80}?股份有限公司)/,
+        /公司信息\s*(.{2,80}?(?:有限责任公司|股份有限公司|公司|集团))/,
+        /(.{2,80}?有限责任公司)\s*(?:已审核|融资|C轮|B轮|A轮|上市|民营)/,
+        /(.{2,80}?股份有限公司)\s*(?:已审核|融资|C轮|B轮|A轮|上市|民营)/,
+        /(.{2,80}?(?:有限责任公司|股份有限公司|公司|集团))\s*(?:已审核|融资|C轮|B轮|A轮|上市|民营)/,
+      ]);
+    const companyName = this.normalizeCompanyName(companyNameRaw, text);
+    const responsibilities = this.extractSectionItems(text, ['岗位职责', '工作职责', '职位描述', '工作内容'], ['任职要求', '岗位要求', '职位要求', '工作地点', '公司信息']);
+    const requirements = this.extractSectionItems(text, ['任职要求', '岗位要求', '职位要求', '任职资格'], ['工作地点', '公司信息', '工商信息', '职位发布者']);
+    const techStack = this.extractTechStack(text);
+    const benefits = this.extractBenefits(text);
+    const fields: JobUrlFields = {
+      jobTitle,
+      companyName,
+      salary,
+      experienceRequirement,
+      educationRequirement,
+      location,
+      responsibilities,
+      requirements: requirements.length ? requirements : responsibilities,
+      techStack,
+      benefits,
+    };
+
+    return {
+      ok: Boolean(jobTitle || companyName || salary || responsibilities.length || requirements.length),
+      url: sourceUrl,
+      fields,
+      rawTextLength: text.length,
+      cleanedTextLength: text.length,
+      cleanedText: this.buildStructuredJdText(sourceUrl, fields, text),
+      diagnostics: { source: 'node-text-extractor' },
+    };
+  }
+
+  private buildStructuredJdText(sourceUrl: string, fields: JobUrlFields, body: string) {
+    const lines = [
+      `岗位网址：${sourceUrl}`,
+      `岗位名称：${fields.jobTitle || ''}`,
+      `公司名称：${fields.companyName || ''}`,
+      `薪资待遇：${fields.salary || ''}`,
+      `工作经验要求：${fields.experienceRequirement || ''}`,
+      `学历要求：${fields.educationRequirement || ''}`,
+      `工作地点：${fields.location || ''}`,
+      fields.techStack?.length ? `技术关键词：${fields.techStack.join('、')}` : '',
+      fields.benefits?.length ? `福利待遇：${fields.benefits.join('、')}` : '',
+      fields.responsibilities?.length ? '岗位职责：' : '',
+      ...(fields.responsibilities || []).map((item, index) => `${index + 1}、${item}`),
+      fields.requirements?.length ? '任职要求：' : '',
+      ...(fields.requirements || []).map((item, index) => `${index + 1}、${item}`),
+      '页面正文：',
+      body,
+    ];
+    return lines.filter(Boolean).join('\n').slice(0, 20000);
+  }
+
+  private matchFirst(text: string, patterns: RegExp[]) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) return match[1].replace(/\s+/g, ' ').trim();
+    }
+    return undefined;
+  }
+
+  private extractSectionItems(text: string, starts: string[], ends: string[]) {
+    const startPositions = starts
+      .map((key) => ({ key, index: text.indexOf(key) }))
+      .filter((item) => item.index >= 0)
+      .sort((a, b) => a.index - b.index);
+    if (!startPositions.length) return [];
+    const start = startPositions[0].index + startPositions[0].key.length;
+    const end = ends
+      .map((key) => text.indexOf(key, start))
+      .filter((index) => index > start)
+      .sort((a, b) => a - b)[0] || Math.min(text.length, start + 5000);
+    return this.splitJobItems(text.slice(start, end));
+  }
+
+  private splitJobItems(text: string) {
+    const lines = text
+      .split(/\n|。|；|;/)
+      .map((line) => line.replace(/^\d+[、.]\s*/, '').trim())
+      .filter((line) => line.length > 2 && line.length < 300);
+    return Array.from(new Set(lines)).slice(0, 20);
+  }
+
+  private extractTechStack(text: string) {
+    const techWords = [
+      'C语言', 'C++', 'Python', 'Java', 'JavaScript', 'TypeScript', 'Linux', 'RTOS', 'ARM', 'STM32', 'DSP',
+      'FPGA', 'Zynq', 'UART', 'I2C', 'SPI', 'CAN', 'USB', 'EtherCAT', 'Modbus', 'Profibus', 'DeviceNET',
+      'React', 'Vue', 'Node.js', 'Spring', 'MySQL', 'Redis', 'Docker', 'Kubernetes',
+    ];
+    return techWords.filter((word) => new RegExp(`(^|[^A-Za-z0-9])${this.escapeRegExp(word)}([^A-Za-z0-9]|$)`, 'i').test(text));
+  }
+
+  private extractBenefits(text: string) {
+    const benefits = ['五险一金', '绩效奖金', '年终奖', '带薪假期', '节日慰问', '餐补', '包住', '周末双休', '定期体检', '股票期权'];
+    return benefits.filter((benefit) => text.includes(benefit));
+  }
+
+  private escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private normalizeCompanyName(companyName: string | undefined, text: string) {
+    if (!companyName) return undefined;
+    const trimmed = companyName.replace(/\s+/g, '').trim();
+    for (const suffix of ['有限责任公司', '股份有限公司', '有限公司']) {
+      const expanded = `${trimmed}${suffix}`;
+      if (!trimmed.endsWith(suffix) && text.replace(/\s+/g, '').includes(expanded)) return expanded;
+    }
+    return trimmed;
   }
 
   private async renderUrlToText(userId: string, sourceUrl: string) {
@@ -454,7 +823,13 @@ export class JobsService {
 
   private cleanParsedTitle(title?: string) {
     if (!title) return title;
-    return title.replace(/^岗位名称[:：]\s*/, '').trim();
+    const cleaned = title
+      .replace(/^岗位名称[:：]\s*/, '')
+      .replace(/^.*(?:举报|APP)\s*/g, '')
+      .replace(/^(?:微信扫码分享|扫码分享|举报|APP|登录\/注册|消息|我要招人|\s)+/g, '')
+      .trim();
+    const titleMatch = cleaned.match(/([\u4e00-\u9fa5A-Za-z0-9+#/（）()·\-\s]{2,30}?(?:工程师|开发|经理|主管|专员|实习生|架构师|设计师|顾问|运维|测试))/);
+    return (titleMatch?.[1] || cleaned).trim();
   }
 
   private safeParseUrl(sourceUrl: string) {

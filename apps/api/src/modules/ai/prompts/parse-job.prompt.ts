@@ -21,6 +21,7 @@ ${jdText}
 请提取以下字段：
 - jobTitle: 岗位名称
 - companyName: 公司名称
+- salary: 薪资待遇
 - location: 工作地点
 - responsibilities: 岗位职责列表
 - requirements: 任职要求列表
@@ -29,4 +30,5 @@ ${jdText}
 - techStack: 技术栈列表
 - experienceRequirement: 经验要求
 - educationRequirement: 学历要求
+- benefits: 福利待遇列表
 - category: 岗位类别`;

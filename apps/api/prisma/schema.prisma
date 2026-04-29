@@ -163,6 +163,8 @@ model JobTarget {
   parsedRequirements    String?
   parsedTechStack       String?
   parsedSalary          String?
+  parsedExperienceRequirement String?
+  parsedEducationRequirement String?
   parsedBenefits        String?
   parseError            String?
   createdAt             DateTime @default(now())

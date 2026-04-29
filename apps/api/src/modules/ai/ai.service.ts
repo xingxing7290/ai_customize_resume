@@ -122,15 +122,25 @@ export class AiService {
       jobTitle: firstLine.slice(0, 80),
       companyName: undefined,
       location: undefined,
+      salary: this.matchFirst(jdText, [/薪资待遇[:：]\s*([^\n]+)/, /(\d+(?:\.\d+)?\s*[-~至]\s*\d+(?:\.\d+)?\s*(?:万|K)(?:·\d+薪)?)/]),
       responsibilities: lines.slice(0, 6),
       requirements: lines.slice(0, 8),
       preferredQualifications: [],
       keywords: matchedTech,
       techStack: matchedTech,
-      experienceRequirement: undefined,
-      educationRequirement: undefined,
+      experienceRequirement: this.matchFirst(jdText, [/工作经验要求[:：]\s*([^\n]+)/, /(\d+\s*-\s*\d+\s*年|\d+年以上|经验不限|应届(?:生|毕业生)?)/]),
+      educationRequirement: this.matchFirst(jdText, [/学历要求[:：]\s*([^\n]+)/, /(博士|硕士|本科|大专|中专|高中|学历不限)/]),
+      benefits: [],
       category: matchedTech.length > 0 ? '技术岗位' : '通用岗位',
     };
+  }
+
+  private matchFirst(text: string, patterns: RegExp[]) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match?.[1]) return match[1].trim();
+    }
+    return undefined;
   }
 
   private buildFallbackResume(profileData: any, jobData: any) {

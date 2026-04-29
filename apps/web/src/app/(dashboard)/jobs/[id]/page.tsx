@@ -18,6 +18,9 @@ interface JobTarget {
   parsedRequirements?: string[];
   parsedTechStack?: string[];
   parsedSalary?: string;
+  parsedBenefits?: string[];
+  parsedExperienceRequirement?: string;
+  parsedEducationRequirement?: string;
   parseError?: string;
   createdAt: string;
 }
@@ -82,6 +85,8 @@ const copy = {
       company: '公司名称',
       location: '工作地点',
       salary: '薪资信息',
+      experience: '经验要求',
+      education: '学历要求',
     },
   },
   en: {
@@ -122,6 +127,8 @@ const copy = {
       company: 'Company',
       location: 'Location',
       salary: 'Salary',
+      experience: 'Experience',
+      education: 'Education',
     },
   },
 } as const;
@@ -267,6 +274,7 @@ export default function JobDetailPage() {
             <List title={t.responsibilities} items={job.parsedResponsibilities || []} emptyText={t.empty} />
             <List title={t.requirements} items={job.parsedRequirements || []} emptyText={t.empty} />
             <List title={t.tech} items={job.parsedTechStack || []} compact emptyText={t.empty} />
+            <List title={language === 'en' ? 'Benefits' : '福利待遇'} items={job.parsedBenefits || []} compact emptyText={t.empty} />
           </section>
         </div>
 
@@ -301,12 +309,14 @@ export default function JobDetailPage() {
   );
 }
 
-function InfoGrid({ job, labels }: { job: JobTarget; labels: { jobTitle: string; company: string; location: string; salary: string } }) {
+function InfoGrid({ job, labels }: { job: JobTarget; labels: { jobTitle: string; company: string; location: string; salary: string; experience: string; education: string } }) {
   const rows = [
     [labels.jobTitle, job.parsedJobTitle],
     [labels.company, job.parsedCompanyName],
     [labels.location, job.parsedLocation],
     [labels.salary, job.parsedSalary],
+    [labels.experience, job.parsedExperienceRequirement],
+    [labels.education, job.parsedEducationRequirement],
   ];
 
   return (

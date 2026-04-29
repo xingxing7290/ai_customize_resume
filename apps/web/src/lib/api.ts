@@ -16,6 +16,7 @@ const JSON_ARRAY_FIELDS = new Set([
   'parsedResponsibilities',
   'parsedRequirements',
   'parsedTechStack',
+  'parsedBenefits',
 ]);
 
 function normalizePayload(value: unknown): unknown {

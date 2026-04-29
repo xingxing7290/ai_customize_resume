@@ -14,6 +14,7 @@ const copy = {
       { href: '/profiles', label: '主档案', short: '档案' },
       { href: '/jobs', label: '岗位输入', short: '岗位' },
       { href: '/resumes', label: '简历生成', short: '简历' },
+      { href: '/settings', label: '设置', short: '设置' },
     ],
     logout: '退出登录',
   },
@@ -23,6 +24,7 @@ const copy = {
       { href: '/profiles', label: 'Profiles', short: 'Profiles' },
       { href: '/jobs', label: 'Jobs', short: 'Jobs' },
       { href: '/resumes', label: 'Resumes', short: 'Resumes' },
+      { href: '/settings', label: 'Settings', short: 'Settings' },
     ],
     logout: 'Sign Out',
   },
@@ -85,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 pb-3 sm:hidden">
+          <div className="grid grid-cols-4 gap-2 pb-3 sm:hidden">
             {t.nav.map((item) => (
               <NavLink key={item.href} href={item.href} active={pathname.startsWith(item.href)} mobile>
                 {item.short}

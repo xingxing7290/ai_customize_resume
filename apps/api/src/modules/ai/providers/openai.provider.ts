@@ -7,7 +7,7 @@ import { AiProvider, AiGenerateParams, AiGenerateResult } from './ai.provider.in
 @Injectable()
 export class OpenAiProvider implements AiProvider {
   private readonly logger = new Logger(OpenAiProvider.name);
-  private client: OpenAI;
+  private client?: OpenAI;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('ai.openaiApiKey');
@@ -19,7 +19,8 @@ export class OpenAiProvider implements AiProvider {
   async generateStructuredJson<T>(
     params: AiGenerateParams & { schema: z.ZodSchema<T> },
   ): Promise<AiGenerateResult<T>> {
-    if (!this.client) {
+    const client = this.getClient(params);
+    if (!client) {
       throw new Error('OpenAI API key not configured');
     }
 
@@ -27,7 +28,7 @@ export class OpenAiProvider implements AiProvider {
     const model = params.model || this.configService.get<string>('ai.model') || 'gpt-4o';
 
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await client.chat.completions.create({
         model,
         messages: [
           { role: 'system', content: params.systemPrompt },
@@ -55,7 +56,8 @@ export class OpenAiProvider implements AiProvider {
   }
 
   async generateText(params: AiGenerateParams): Promise<AiGenerateResult<string>> {
-    if (!this.client) {
+    const client = this.getClient(params);
+    if (!client) {
       throw new Error('OpenAI API key not configured');
     }
 
@@ -63,7 +65,7 @@ export class OpenAiProvider implements AiProvider {
     const model = params.model || this.configService.get<string>('ai.model') || 'gpt-4o';
 
     try {
-      const response = await this.client.chat.completions.create({
+      const response = await client.chat.completions.create({
         model,
         messages: [
           { role: 'system', content: params.systemPrompt },
@@ -85,5 +87,15 @@ export class OpenAiProvider implements AiProvider {
       this.logger.error(`OpenAI API error: ${error.message}`);
       throw error;
     }
+  }
+
+  private getClient(params: AiGenerateParams) {
+    if (params.apiKey) {
+      return new OpenAI({
+        apiKey: params.apiKey,
+        baseURL: params.baseUrl || 'https://api.deepseek.com',
+      });
+    }
+    return this.client;
   }
 }

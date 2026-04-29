@@ -20,6 +20,7 @@ model User {
   profiles      ResumeProfile[]
   jobTargets    JobTarget[]
   resumeVersions ResumeVersion[]
+  aiSetting     UserAiSetting?
 
   @@map("users")
 }
@@ -242,4 +243,21 @@ model AITaskLog {
   @@index([userId])
   @@index([taskType])
   @@map("ai_task_logs")
+}
+
+model UserAiSetting {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  provider    String   @default("deepseek")
+  apiKey      String
+  baseUrl     String   @default("https://api.deepseek.com")
+  model       String   @default("deepseek-v4-flash")
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_ai_settings")
 }

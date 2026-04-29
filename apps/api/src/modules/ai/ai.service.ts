@@ -31,6 +31,7 @@ export class AiService {
     userId: string,
     jdText: string,
     jobTargetId: string,
+    runtimeConfig?: { apiKey?: string; baseUrl?: string; model?: string },
   ) {
     const taskLog = await this.createTaskLog(
       userId,
@@ -46,6 +47,9 @@ export class AiService {
         userPrompt: buildParseJobUserPrompt(jdText),
         schema: ParseJobSchema,
         temperature: 0.2,
+        apiKey: runtimeConfig?.apiKey,
+        baseUrl: runtimeConfig?.baseUrl,
+        model: runtimeConfig?.model,
       });
 
       await this.updateTaskLogSuccess(taskLog.id, result);
@@ -69,6 +73,7 @@ export class AiService {
     profileData: any,
     jobData: any,
     resumeVersionId: string,
+    runtimeConfig?: { apiKey?: string; baseUrl?: string; model?: string },
   ) {
     const taskLog = await this.createTaskLog(
       userId,
@@ -84,6 +89,9 @@ export class AiService {
         userPrompt: buildGenerateResumeUserPrompt(profileData, jobData),
         schema: GenerateResumeSchema,
         temperature: 0.3,
+        apiKey: runtimeConfig?.apiKey,
+        baseUrl: runtimeConfig?.baseUrl,
+        model: runtimeConfig?.model,
       });
 
       await this.updateTaskLogSuccess(taskLog.id, result);

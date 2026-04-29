@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResumeVersionDto, UpdateResumeVersionDto } from './dto';
 import { AiService } from '../ai/ai.service';
 import { FileLoggerService } from '../../common/logger/file-logger.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class ResumesService {
@@ -10,6 +11,7 @@ export class ResumesService {
     private prisma: PrismaService,
     private aiService: AiService,
     private fileLogger: FileLoggerService,
+    private settingsService: SettingsService,
   ) {}
 
   async create(userId: string, dto: CreateResumeVersionDto) {
@@ -62,6 +64,7 @@ export class ResumesService {
         profile,
         this.toJobAiInput(jobTarget),
         resume.id,
+        await this.settingsService.getRuntimeAiSetting(userId),
       );
 
       const updated = await this.prisma.resumeVersion.update({
@@ -209,6 +212,7 @@ export class ResumesService {
         resume.profile,
         this.toJobAiInput(jobTarget),
         id,
+        await this.settingsService.getRuntimeAiSetting(userId),
       );
 
       const updated = await this.prisma.resumeVersion.update({
@@ -269,6 +273,10 @@ export class ResumesService {
       responsibilities: this.parseJsonArray(jobTarget.parsedResponsibilities),
       requirements: this.parseJsonArray(jobTarget.parsedRequirements),
       techStack: this.parseJsonArray(jobTarget.parsedTechStack),
+      salary: jobTarget.parsedSalary,
+      experienceRequirement: jobTarget.parsedExperienceRequirement,
+      educationRequirement: jobTarget.parsedEducationRequirement,
+      benefits: this.parseJsonArray(jobTarget.parsedBenefits),
     };
   }
 

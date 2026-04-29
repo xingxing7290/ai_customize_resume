@@ -9,6 +9,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
 import { ResumesModule } from './modules/resumes/resumes.module';
 import { PublishModule } from './modules/publish/publish.module';
 import { PdfModule } from './modules/pdf/pdf.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
@@ -31,6 +32,7 @@ import { LoggerModule } from './common/logger/logger.module';
     ResumesModule,
     PublishModule,
     PdfModule,
+    SettingsModule,
   ],
   providers: [
     {

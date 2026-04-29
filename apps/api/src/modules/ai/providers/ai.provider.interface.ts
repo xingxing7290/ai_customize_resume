@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export interface AiGenerateParams {
   model?: string;
+  apiKey?: string;
+  baseUrl?: string;
   systemPrompt: string;
   userPrompt: string;
   temperature?: number;

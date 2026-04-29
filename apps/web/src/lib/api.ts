@@ -159,4 +159,9 @@ export const api = {
     get: (versionId: string) => apiFetch<any>(`/publish/${versionId}`),
     unpublish: (versionId: string) => apiFetch<any>(`/publish/${versionId}`, { method: 'DELETE' }),
   },
+
+  settings: {
+    getAi: () => apiFetch<any>('/settings/ai'),
+    updateAi: (data: any) => apiFetch<any>('/settings/ai', { method: 'PUT', body: JSON.stringify(data) }),
+  },
 };

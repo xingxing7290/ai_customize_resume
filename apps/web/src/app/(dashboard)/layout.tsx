@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { LanguageSelector } from '@/components/LanguageSelector';
-import { DashboardLanguageRuntime } from '@/components/DashboardLanguageRuntime';
 import { useLanguage } from '@/lib/language';
 import { api } from '@/lib/api';
 
@@ -55,7 +54,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <DashboardLanguageRuntime language={language} />
       <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 justify-between">

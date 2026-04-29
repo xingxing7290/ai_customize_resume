@@ -150,7 +150,16 @@ export class JobsService {
   }
 
   private async resolveJdText(userId: string, sourceUrl?: string | null, rawJdText?: string | null) {
-    if (rawJdText?.trim()) return rawJdText.trim();
+    if (rawJdText?.trim()) {
+      const cleaned = this.sanitizeJobText(rawJdText.trim());
+      this.fileLogger.operation('job_text_sanitized', {
+        userId,
+        sourceUrl: sourceUrl?.trim() || null,
+        beforeLength: rawJdText.trim().length,
+        afterLength: cleaned.length,
+      });
+      return cleaned;
+    }
     if (!sourceUrl?.trim()) return undefined;
 
     const normalizedUrl = sourceUrl.trim();
@@ -175,7 +184,8 @@ export class JobsService {
         textLength: text.length,
       });
 
-      if (this.validateJdText(text).ok) return text;
+      const cleanedText = this.sanitizeJobText(text);
+      if (this.validateJdText(cleanedText).ok) return cleanedText;
 
       this.fileLogger.operation('job_url_fetch_unusable', {
         userId,
@@ -184,9 +194,10 @@ export class JobsService {
       });
 
       const renderedText = await this.renderUrlToText(userId, normalizedUrl);
-      if (this.validateJdText(renderedText).ok) return renderedText;
+      const cleanedRenderedText = renderedText ? this.sanitizeJobText(renderedText) : renderedText;
+      if (this.validateJdText(cleanedRenderedText).ok) return cleanedRenderedText;
 
-      const fallback = this.buildUrlFallbackJd(normalizedUrl, renderedText || text);
+      const fallback = this.buildUrlFallbackJd(normalizedUrl, cleanedRenderedText || cleanedText);
       this.fileLogger.operation('job_url_fallback_built', {
         userId,
         sourceUrl: normalizedUrl,
@@ -198,9 +209,10 @@ export class JobsService {
       this.fileLogger.operation('job_url_fetch_failed', { userId, sourceUrl: normalizedUrl, message });
 
       const renderedText = await this.renderUrlToText(userId, normalizedUrl);
-      if (this.validateJdText(renderedText).ok) return renderedText;
+      const cleanedRenderedText = renderedText ? this.sanitizeJobText(renderedText) : renderedText;
+      if (this.validateJdText(cleanedRenderedText).ok) return cleanedRenderedText;
 
-      return this.buildUrlFallbackJd(normalizedUrl, renderedText);
+      return this.buildUrlFallbackJd(normalizedUrl, cleanedRenderedText);
     }
   }
 
@@ -338,31 +350,43 @@ export class JobsService {
       'enable javascript',
       'just a moment',
     ];
-    const jobSignals = [
-      '岗位职责',
+
+    // Strong JD section headings: if present, we should not treat the page as generic navigation.
+    const strongSections = [
       '职位描述',
-      '任职要求',
+      '岗位职责',
       '工作职责',
-      '职位详情页',
-      '职位卡片',
+      '任职要求',
+      '岗位要求',
+      '岗位介绍',
+      '职位要求',
+      '工作内容',
+      '工作地点',
+      '薪资',
+      '福利',
+      '任职资格',
+    ];
+
+    const jobSignals = [
+      ...strongSections,
+      '公司信息',
+      '公司介绍',
+      '工商信息',
+      '职位详情',
       '岗位名称',
-      '岗位关键词',
-      'boss直聘搜索页',
       'responsibilities',
       'requirements',
       'qualifications',
-      '薪资',
-      '经验',
-      '学历',
     ];
     const hasBlockerText = blockerPatterns.some((pattern) => lower.includes(pattern.toLowerCase()));
     const hasJobSignals = jobSignals.some((signal) => lower.includes(signal.toLowerCase()));
-    const hasExtractedJobCard = lower.includes('职位卡片') || lower.includes('boss zhipin search result');
+    const hasStrongSections = strongSections.some((signal) => text.includes(signal));
     const looksLikeGenericNavigation =
+      !hasStrongSections &&
       lower.includes('热门职位') &&
       lower.includes('首页') &&
-      lower.includes('登录/注册') &&
-      !hasExtractedJobCard;
+      (lower.includes('登录/注册') || lower.includes('登录')) &&
+      !lower.includes('职位描述');
 
     if (compact.length < 80) {
       return {
@@ -385,7 +409,8 @@ export class JobsService {
       };
     }
 
-    return { ok: true };
+    if (hasStrongSections) return { ok: true };
+    return { ok: hasJobSignals };
   }
 
   private async waitForRenderedPage(page: any) {
@@ -477,5 +502,96 @@ export class JobsService {
       .replace(/&gt;/g, '>')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  private sanitizeJobText(text: string) {
+    const original = (text || '').trim();
+    if (!original) return original;
+
+    // Normalize line breaks first to make section slicing reliable.
+    const lines = original
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    // Remove common navigation/footer noise often present in copied job pages.
+    const dropContains = [
+      '首页',
+      '登录/注册',
+      '扫码分享',
+      '举报',
+      '热门职位',
+      '热门城市',
+      '热门公司',
+      '关于我们',
+      '使用与帮助',
+      '法律协议',
+      '资质公示',
+      '未经',
+      '版权所有',
+      'ICP备',
+      '公网安备',
+      '网络110',
+      '人力资源许可证',
+      '电子营业执照',
+      '算法备案',
+      '未成年人',
+      '投诉',
+      '监督电话',
+      '查看全部信息',
+      '查看更多',
+      '相似职位',
+      '最新招聘',
+      '消息',
+      '我要招人',
+      '更新于',
+      '收藏',
+      '立即投递',
+      '立即沟通',
+    ];
+
+    const filtered = lines.filter((line) => {
+      if (line.length <= 1) return false;
+      if (dropContains.some((needle) => line.includes(needle))) return false;
+      return true;
+    });
+
+    const joined = filtered.join('\n');
+
+    // Slice "职位描述/任职要求" section if present.
+    const startKeys = ['职位描述', '岗位职责', '工作职责', '职位介绍', '任职要求', '岗位要求', '职位要求'];
+    const endKeys = ['公司信息', '工商信息', '公司基本信息', '认证资质', '相似职位', '最新招聘', '关于我们'];
+
+    const startIndex = startKeys
+      .map((key) => joined.indexOf(key))
+      .filter((idx) => idx >= 0)
+      .sort((a, b) => a - b)[0];
+
+    const endIndex = endKeys
+      .map((key) => joined.indexOf(key))
+      .filter((idx) => idx >= 0)
+      .sort((a, b) => a - b)[0];
+
+    let core = joined;
+    if (typeof startIndex === 'number' && startIndex >= 0) {
+      core = joined.slice(startIndex, endIndex && endIndex > startIndex ? endIndex : undefined);
+    } else if (typeof endIndex === 'number' && endIndex > 0) {
+      // If we can't find explicit JD start, still cut off footer/company blocks.
+      core = joined.slice(0, endIndex);
+    }
+
+    // Keep a short header from the beginning to help model pick up title/salary/location if present.
+    const header = filtered.slice(0, 12).join('\n');
+
+    const merged = [header, core]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join('\n\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .slice(0, 20000);
+
+    return merged || original.slice(0, 20000);
   }
 }

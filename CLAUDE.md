@@ -108,3 +108,9 @@ SSH connection: `ssh -i ~/.ssh/ai_resume_server root@113.44.50.108`
    - 修改的文件
    - 测试结果
 9. **问题解决** - 流程结束
+
+## important
+
+网页显示和PEF下载参考：ttps://github.com/whidy/resume.git
+
+建立样式参考：https://github.com/amruthpillai/reactive-resum.git

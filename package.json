@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
+    "ai-customize-resume": "file:",
     "prisma": "^5.10.0"
   }
 }

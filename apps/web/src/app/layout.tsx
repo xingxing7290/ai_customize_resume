@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from 'next/headers';
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,13 +7,15 @@ export const metadata: Metadata = {
   description: "智能生成针对特定岗位的定制简历",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const language = cookieStore.get('appLanguage')?.value === 'en' ? 'en' : 'zh';
   return (
-    <html lang="zh-CN" className="h-full antialiased">
+    <html lang={language === 'en' ? 'en' : 'zh-CN'} className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ResumeItem, ResumePreview, ResumePreviewData, ResumeTemplate, normalizeTemplate, resumeTemplates } from '@/components/resume/ResumePreview';
+import { ResumePreview, normalizeTemplate, resumeTemplates, ResumePreviewData, ResumeTemplate, ResumeItem } from '@/components/resume/ResumePreview';
 import { TemplateSelector } from '@/components/resume/TemplateSelector';
 import { api } from '@/lib/api';
+import { useLanguage } from '@/lib/language';
 
 interface ResumeVersion extends ResumePreviewData {
   id: string;
@@ -20,7 +21,94 @@ interface ResumeVersion extends ResumePreviewData {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
 const WEB_BASE_URL = process.env.NEXT_PUBLIC_WEB_URL || 'http://113.44.50.108:3000';
 
+const copy = {
+  zh: {
+    loadFailed: '简历加载失败',
+    draftSaved: '草稿已保存',
+    saveFailed: '保存失败',
+    confirmRegenerate: '确定重新生成吗？当前编辑内容会被生成结果覆盖。',
+    regenerated: '已重新生成',
+    regenerateFailed: '重新生成失败',
+    published: (url: string) => `已发布公开链接：${url}`,
+    publishFailed: '发布失败',
+    confirmRegenerateLink: '确定重新生成公开链接吗？旧链接将失效。',
+    linkRegenerated: (url: string) => `已重新生成公开链接：${url}`,
+    regenerateLinkFailed: '重新生成链接失败',
+    sessionExpiredForPdf: '登录已失效，请重新登录后下载 PDF',
+    pdfDownloadFailed: (template: string) => `PDF 下载失败，当前样式：${template}`,
+    pdfEmpty: (template: string) => `PDF 生成为空文件，当前样式：${template}`,
+    pdfGenericFailed: 'PDF 下载失败',
+    pdfStarted: 'PDF 已生成并开始下载',
+    pdfServiceError: 'PDF 下载失败，请检查服务是否可访问',
+    processing: '处理中...',
+    saveDraft: '保存草稿',
+    regenerate: '重新生成',
+    duplicate: '复制版本',
+    publish: '发布',
+    regenerateLink: '重新生成链接',
+    downloadPdf: '下载 PDF',
+    style: '简历样式',
+    styleHint: '参考 awesome-resume-for-chinese 中常见中文简历排版方向，点击缩略图即可在右侧预览和 PDF 中同步生效。',
+    editor: '在线编辑',
+    preview: '简历预览',
+    currentStyle: '当前样式：',
+    aiNotes: 'AI 优化说明',
+    aiGaps: '待补充差距',
+    fields: {
+      summary: '个人简介',
+      skills: '技能标签（每行一个）',
+      work: '工作经历（每段用空行分隔，第一行为职位/标题）',
+      project: '项目经历（每段用空行分隔，第一行为项目名）',
+      certificates: '证书/奖项（每行一个）',
+      evaluation: '自我评价',
+    },
+  },
+  en: {
+    loadFailed: 'Failed to load resume',
+    draftSaved: 'Draft saved',
+    saveFailed: 'Save failed',
+    confirmRegenerate: 'Regenerate now? Your current edits will be overwritten by the new result.',
+    regenerated: 'Regenerated',
+    regenerateFailed: 'Regeneration failed',
+    published: (url: string) => `Published public link: ${url}`,
+    publishFailed: 'Publish failed',
+    confirmRegenerateLink: 'Regenerate the public link? The old link will stop working.',
+    linkRegenerated: (url: string) => `Regenerated public link: ${url}`,
+    regenerateLinkFailed: 'Failed to regenerate link',
+    sessionExpiredForPdf: 'Session expired. Please sign in again to download PDF.',
+    pdfDownloadFailed: (template: string) => `PDF download failed. Current style: ${template}`,
+    pdfEmpty: (template: string) => `PDF is empty. Current style: ${template}`,
+    pdfGenericFailed: 'PDF download failed',
+    pdfStarted: 'PDF generated. Download started.',
+    pdfServiceError: 'PDF download failed. Please check service connectivity.',
+    processing: 'Processing...',
+    saveDraft: 'Save Draft',
+    regenerate: 'Regenerate',
+    duplicate: 'Duplicate',
+    publish: 'Publish',
+    regenerateLink: 'Regenerate Link',
+    downloadPdf: 'Download PDF',
+    style: 'Resume Style',
+    styleHint: 'Click a thumbnail to apply it to both the right-side preview and the exported PDF.',
+    editor: 'Editor',
+    preview: 'Resume Preview',
+    currentStyle: 'Current style: ',
+    aiNotes: 'AI Notes',
+    aiGaps: 'Gaps to Fill',
+    fields: {
+      summary: 'Summary',
+      skills: 'Skills (one per line)',
+      work: 'Work Experience (separate entries with a blank line; first line is title)',
+      project: 'Project Experience (separate entries with a blank line; first line is project name)',
+      certificates: 'Certificates / Awards (one per line)',
+      evaluation: 'Self Evaluation',
+    },
+  },
+} as const;
+
 export default function ResumeEditPage() {
+  const { language } = useLanguage();
+  const t = copy[language];
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
@@ -92,7 +180,7 @@ export default function ResumeEditPage() {
         setPublicUrl('');
       }
     } else {
-      setMessage(result.message || '简历加载失败');
+      setMessage(result.message || t.loadFailed);
     }
     setLoading(false);
   };
@@ -112,28 +200,30 @@ export default function ResumeEditPage() {
 
     if (result.data) {
       setResume(result.data as ResumeVersion);
-      setMessage('草稿已保存');
+      setMessage(t.draftSaved);
       return;
     }
-    setMessage(result.message || '保存失败');
+    setMessage(result.message || t.saveFailed);
   };
 
   const handleRegenerate = async () => {
-    if (!confirm('确定重新生成吗？当前编辑内容会被生成结果覆盖。')) return;
+    if (!confirm(t.confirmRegenerate)) return;
     setSaving(true);
     setMessage('');
     const result = await api.resumes.regenerate(id);
     setSaving(false);
     if (result.data) {
-      setMessage('已重新生成');
+      setMessage(t.regenerated);
       await loadResume();
       return;
     }
-    setMessage(result.message || '重新生成失败');
+    setMessage(result.message || t.regenerateFailed);
   };
 
   const handleCopy = async () => {
-    const result = await api.resumes.copy(id, { name: `${resume?.name || '简历'} 副本` });
+    const fallbackName = language === 'en' ? 'Resume' : '简历';
+    const suffix = language === 'en' ? 'Copy' : '副本';
+    const result = await api.resumes.copy(id, { name: `${resume?.name || fallbackName} ${suffix}` });
     if (result.data?.id) router.push(`/resumes/${result.data.id}`);
   };
 
@@ -143,31 +233,31 @@ export default function ResumeEditPage() {
       setPublicToken(result.data.publicToken);
       const url = `${WEB_BASE_URL}/r/${result.data.publicToken}?style=${template}`;
       setPublicUrl(url);
-      setMessage(`已发布公开链接：${url}`);
+      setMessage(t.published(url));
       await loadResume();
       return;
     }
-    setMessage(result.message || '发布失败');
+    setMessage(result.message || t.publishFailed);
   };
 
   const handleRegeneratePublicUrl = async () => {
-    if (!confirm('确定重新生成公开链接吗？旧链接将失效。')) return;
+    if (!confirm(t.confirmRegenerateLink)) return;
     const result = await api.publish.regenerate(id);
     if (result.data?.publicToken) {
       setPublicToken(result.data.publicToken);
       const url = `${WEB_BASE_URL}/r/${result.data.publicToken}?style=${template}`;
       setPublicUrl(url);
-      setMessage(`已重新生成公开链接：${url}`);
+      setMessage(t.linkRegenerated(url));
       return;
     }
-    setMessage(result.message || '重新生成链接失败');
+    setMessage(result.message || t.regenerateLinkFailed);
   };
 
   const handleDownloadPdf = async () => {
     setMessage('');
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      setMessage('登录已失效，请重新登录后下载 PDF');
+      setMessage(t.sessionExpiredForPdf);
       return;
     }
 
@@ -177,20 +267,20 @@ export default function ResumeEditPage() {
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        setMessage(payload?.message || 'PDF 下载失败');
+        setMessage(payload?.message || t.pdfGenericFailed);
         return;
       }
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('application/pdf')) {
         const payload = await response.json().catch(() => null);
-        setMessage(payload?.message || `PDF 下载失败，当前样式：${template}`);
+        setMessage(payload?.message || t.pdfDownloadFailed(template));
         return;
       }
 
       const blob = await response.blob();
       if (blob.size === 0) {
-        setMessage(`PDF 生成为空文件，当前样式：${template}`);
+        setMessage(t.pdfEmpty(template));
         return;
       }
       const href = URL.createObjectURL(blob);
@@ -201,14 +291,14 @@ export default function ResumeEditPage() {
       link.click();
       link.remove();
       URL.revokeObjectURL(href);
-      setMessage('PDF 已生成并开始下载');
+      setMessage(t.pdfStarted);
     } catch {
-      setMessage('PDF 下载失败，请检查服务是否可访问');
+      setMessage(t.pdfServiceError);
     }
   };
 
-  if (loading) return <div className="py-12 text-center text-slate-500">加载中...</div>;
-  if (!resume || !previewResume) return <div className="py-12 text-center text-red-500">简历未找到</div>;
+  if (loading) return <div className="py-12 text-center text-slate-500">{t.processing}</div>;
+  if (!resume || !previewResume) return <div className="py-12 text-center text-red-500">{language === 'en' ? 'Resume not found' : '简历未找到'}</div>;
 
   return (
     <div className="space-y-6">
@@ -222,12 +312,12 @@ export default function ResumeEditPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">{saving ? '处理中...' : '保存草稿'}</button>
-          <button type="button" onClick={handleRegenerate} disabled={saving} className="btn-secondary">重新生成</button>
-          <button type="button" onClick={handleCopy} className="btn-secondary">复制版本</button>
-          <button type="button" onClick={handlePublish} className="btn-primary bg-emerald-600 hover:bg-emerald-700">发布</button>
-          <button type="button" onClick={handleRegeneratePublicUrl} className="btn-secondary">重新生成链接</button>
-          <button type="button" onClick={handleDownloadPdf} className="btn-secondary">下载 PDF</button>
+          <button type="button" onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">{saving ? t.processing : t.saveDraft}</button>
+          <button type="button" onClick={handleRegenerate} disabled={saving} className="btn-secondary">{t.regenerate}</button>
+          <button type="button" onClick={handleCopy} className="btn-secondary">{t.duplicate}</button>
+          <button type="button" onClick={handlePublish} className="btn-primary bg-emerald-600 hover:bg-emerald-700">{t.publish}</button>
+          <button type="button" onClick={handleRegeneratePublicUrl} className="btn-secondary">{t.regenerateLink}</button>
+          <button type="button" onClick={handleDownloadPdf} className="btn-secondary">{t.downloadPdf}</button>
         </div>
       </div>
 
@@ -236,35 +326,35 @@ export default function ResumeEditPage() {
 
       <section className="card p-4">
         <div className="mb-3">
-          <h2 className="text-base font-semibold text-slate-900">简历样式</h2>
-          <p className="mt-1 text-sm text-slate-500">参考 awesome-resume-for-chinese 中常见中文简历排版方向，点击缩略图即可在右侧预览和 PDF 中同步生效。</p>
+          <h2 className="text-base font-semibold text-slate-900">{t.style}</h2>
+          <p className="mt-1 text-sm text-slate-500">{t.styleHint}</p>
         </div>
         <TemplateSelector selected={template} onSelect={setTemplate} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className="card space-y-5 p-6">
-          <h2 className="text-lg font-semibold text-slate-900">在线编辑</h2>
-          <TextArea label="个人简介" rows={5} value={editForm.summary} onChange={(value) => setEditForm({ ...editForm, summary: value })} />
-          <TextArea label="技能标签（每行一个）" rows={5} value={editForm.skillsText} onChange={(value) => setEditForm({ ...editForm, skillsText: value })} />
-          <TextArea label="工作经历（每段用空行分隔，第一行为职位/标题）" rows={8} value={editForm.workText} onChange={(value) => setEditForm({ ...editForm, workText: value })} />
-          <TextArea label="项目经历（每段用空行分隔，第一行为项目名）" rows={8} value={editForm.projectText} onChange={(value) => setEditForm({ ...editForm, projectText: value })} />
-          <TextArea label="证书/奖项（每行一个）" rows={4} value={editForm.certificatesText} onChange={(value) => setEditForm({ ...editForm, certificatesText: value })} />
-          <TextArea label="自我评价" rows={4} value={editForm.selfEvaluation} onChange={(value) => setEditForm({ ...editForm, selfEvaluation: value })} />
+          <h2 className="text-lg font-semibold text-slate-900">{t.editor}</h2>
+          <TextArea label={t.fields.summary} rows={5} value={editForm.summary} onChange={(value) => setEditForm({ ...editForm, summary: value })} />
+          <TextArea label={t.fields.skills} rows={5} value={editForm.skillsText} onChange={(value) => setEditForm({ ...editForm, skillsText: value })} />
+          <TextArea label={t.fields.work} rows={8} value={editForm.workText} onChange={(value) => setEditForm({ ...editForm, workText: value })} />
+          <TextArea label={t.fields.project} rows={8} value={editForm.projectText} onChange={(value) => setEditForm({ ...editForm, projectText: value })} />
+          <TextArea label={t.fields.certificates} rows={4} value={editForm.certificatesText} onChange={(value) => setEditForm({ ...editForm, certificatesText: value })} />
+          <TextArea label={t.fields.evaluation} rows={4} value={editForm.selfEvaluation} onChange={(value) => setEditForm({ ...editForm, selfEvaluation: value })} />
         </section>
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">简历预览</h2>
-            <span className="text-sm text-slate-500">当前样式：{resumeTemplates.find((item) => item.id === template)?.label}</span>
+            <h2 className="text-lg font-semibold text-slate-900">{t.preview}</h2>
+            <span className="text-sm text-slate-500">{t.currentStyle}{resumeTemplates.find((item) => item.id === template)?.label}</span>
           </div>
           <div className="overflow-auto rounded border border-slate-200 bg-slate-100 p-3">
             <ResumePreview resume={previewResume} template={template} />
           </div>
           {(resume.aiOptimizationNotes?.length || resume.aiGapAnalysis?.length) && (
             <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              <InlineList title="AI 优化说明" items={resume.aiOptimizationNotes || []} />
-              <InlineList title="待补充差距" items={resume.aiGapAnalysis || []} />
+              <InlineList title={t.aiNotes} items={resume.aiOptimizationNotes || []} />
+              <InlineList title={t.aiGaps} items={resume.aiGapAnalysis || []} />
             </div>
           )}
         </section>

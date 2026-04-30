@@ -166,7 +166,7 @@ export class PdfService {
         highlights: this.parseJsonArray<string>(proj.highlights),
         techStack: this.parseJsonArray<string>(proj.techStack),
       })),
-      contentCertificates: this.parseJsonArray<string>(resume.contentCertificates),
+      contentCertificates: this.parseJsonArray<string>(resume.contentCertificates).map((item) => this.formatCertificate(item)).filter(Boolean),
     };
   }
 
@@ -346,6 +346,37 @@ export class PdfService {
   private plainList(items: string[]) {
     if (!items.length) return '';
     return `<ul class="plain-list">${items.map((item) => `<li>${this.escape(item)}</li>`).join('')}</ul>`;
+  }
+
+  private formatCertificate(value: unknown): string {
+    if (!value) return '';
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed.startsWith('{')) return trimmed;
+      try {
+        return this.formatCertificate(JSON.parse(trimmed));
+      } catch {
+        return trimmed;
+      }
+    }
+    if (typeof value !== 'object') return String(value).trim();
+
+    const item = value as Record<string, unknown>;
+    const name = this.scalarString(item.name || item.title || item.certificate || item.award || item.certName);
+    const authority = this.scalarString(item.authority || item.issuer || item.organization || item.org);
+    const date = this.scalarString(item.date || item.issueDate || item.time);
+    const description = this.scalarString(item.description || item.desc || item.detail);
+    const link = this.scalarString(item.link || item.url);
+    const main = [name, authority, date].filter(Boolean).join(' · ');
+    const detail = [description, link].filter(Boolean).join(' · ');
+    if (main && detail) return `${main}：${detail}`;
+    if (main) return main;
+    return detail || Object.entries(item).map(([key, val]) => `${key}: ${this.scalarString(val)}`).join(' · ');
+  }
+
+  private scalarString(value: unknown) {
+    if (!value) return '';
+    return typeof value === 'string' ? value.trim() : String(value).trim();
   }
 
   private items(items: ResumeItem[], type: 'work' | 'project', variant?: 'compact' | 'timeline' | 'bordered') {

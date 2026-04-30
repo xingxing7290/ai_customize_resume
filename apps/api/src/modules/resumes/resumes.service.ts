@@ -298,7 +298,7 @@ export class ResumesService {
       contentSkills: generatedContent.skills ? JSON.stringify(generatedContent.skills) : null,
       contentWorkExperiences: JSON.stringify(safeWorkExperiences),
       contentProjectExperiences: JSON.stringify(safeProjectExperiences),
-      contentCertificates: generatedContent.certificates ? JSON.stringify(generatedContent.certificates) : null,
+      contentCertificates: generatedContent.certificates ? JSON.stringify(this.normalizeCertificates(generatedContent.certificates)) : null,
       contentSelfEvaluation: generatedContent.selfEvaluation,
       aiOptimizationNotes: generatedContent.optimizationNotes ? JSON.stringify(generatedContent.optimizationNotes) : null,
       aiGapAnalysis: generatedContent.gapAnalysis ? JSON.stringify(generatedContent.gapAnalysis) : null,
@@ -377,6 +377,41 @@ export class ResumesService {
         .filter(Boolean);
     }
     return [String(value).trim()].filter(Boolean);
+  }
+
+  private normalizeCertificates(value: unknown): string[] {
+    return this.toStringArray(value).map((item) => this.formatCertificate(item)).filter(Boolean);
+  }
+
+  private formatCertificate(value: unknown): string {
+    if (!value) return '';
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed.startsWith('{')) return trimmed;
+      try {
+        return this.formatCertificate(JSON.parse(trimmed));
+      } catch {
+        return trimmed;
+      }
+    }
+    if (typeof value !== 'object') return String(value).trim();
+
+    const item = value as Record<string, unknown>;
+    const name = this.scalarString(item.name || item.title || item.certificate || item.award || item.certName);
+    const authority = this.scalarString(item.authority || item.issuer || item.organization || item.org);
+    const date = this.scalarString(item.date || item.issueDate || item.time);
+    const description = this.scalarString(item.description || item.desc || item.detail);
+    const link = this.scalarString(item.link || item.url);
+    const main = [name, authority, date].filter(Boolean).join(' · ');
+    const detail = [description, link].filter(Boolean).join(' · ');
+    if (main && detail) return `${main}：${detail}`;
+    if (main) return main;
+    return detail || Object.entries(item).map(([key, val]) => `${key}: ${this.scalarString(val)}`).join(' · ');
+  }
+
+  private scalarString(value: unknown) {
+    if (!value) return '';
+    return typeof value === 'string' ? value.trim() : String(value).trim();
   }
 
   private relevanceScore(item: any, jobKeywords: string[]) {

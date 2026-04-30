@@ -595,9 +595,30 @@ function PlainList({ items }: { items: string[] }) {
   if (!items.length) return null;
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-1 text-current">
-      {items.map((item) => <li key={item}>{item}</li>)}
+      {items.map((item) => <li key={item}>{formatCertificate(item)}</li>)}
     </ul>
   );
+}
+
+function formatCertificate(value: unknown) {
+  if (!value) return '';
+  if (typeof value !== 'string') return String(value);
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{')) return trimmed;
+  try {
+    const item = JSON.parse(trimmed);
+    const name = item.name || item.title || item.certificate || item.award || item.certName;
+    const authority = item.authority || item.issuer || item.organization || item.org;
+    const date = item.date || item.issueDate || item.time;
+    const description = item.description || item.desc || item.detail;
+    const link = item.link || item.url;
+    const main = [name, authority, date].filter(Boolean).join(' · ');
+    const detail = [description, link].filter(Boolean).join(' · ');
+    if (main && detail) return `${main}：${detail}`;
+    return main || detail || trimmed;
+  } catch {
+    return trimmed;
+  }
 }
 
 function entryHeading(item: ResumeItem, type: 'work' | 'project') {

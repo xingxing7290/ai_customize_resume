@@ -131,7 +131,7 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           {t.noAccount}{' '}
-          <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link href="/register" className="font-medium text-blue-700 hover:text-blue-800">
             {t.register}
           </Link>
         </p>

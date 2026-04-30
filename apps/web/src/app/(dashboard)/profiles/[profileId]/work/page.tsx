@@ -203,12 +203,12 @@ export default function WorkPage() {
           <div key={item.id} className="p-5 flex items-start justify-between">
             <div>
               <h3 className="font-semibold text-slate-900">{item.title}</h3>
-              <p className="text-sm text-indigo-600">{item.company}</p>
+              <p className="text-sm text-blue-700">{item.company}</p>
               <p className="text-sm text-slate-500">{item.startDate} - {item.isCurrent ? t.present : item.endDate}</p>
               {item.techStack && <p className="mt-2 text-xs text-slate-500">{item.techStack}</p>}
             </div>
             <div className="flex gap-3 text-sm">
-              <button type="button" onClick={() => handleEdit(item)} className="text-indigo-600">{t.editBtn}</button>
+              <button type="button" onClick={() => handleEdit(item)} className="text-blue-700">{t.editBtn}</button>
               <button type="button" onClick={() => handleDelete(item.id)} className="text-red-600">{t.deleteBtn}</button>
             </div>
           </div>

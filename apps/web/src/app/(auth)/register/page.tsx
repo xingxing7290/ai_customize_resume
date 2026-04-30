@@ -100,7 +100,7 @@ export default function RegisterPage() {
       <div className="theme-band hidden items-center justify-center p-12 lg:flex lg:w-1/2">
         <div className="max-w-md text-white">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-white/15">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/20 bg-white/15">
               <span className="text-2xl font-bold">AI</span>
             </div>
             <span className="text-2xl font-bold">{t.brand}</span>
@@ -148,7 +148,7 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center text-slate-500">
             {t.haveAccount}{' '}
-            <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+            <Link href="/login" className="font-medium text-blue-700 hover:text-blue-800">
               {t.login}
             </Link>
           </p>

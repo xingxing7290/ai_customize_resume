@@ -206,7 +206,7 @@ export default function EducationPage() {
               {item.description && <p className="mt-2 text-sm text-slate-600">{item.description}</p>}
             </div>
             <div className="flex gap-3 text-sm">
-              <button type="button" onClick={() => handleEdit(item)} className="text-indigo-600">{t.editBtn}</button>
+              <button type="button" onClick={() => handleEdit(item)} className="text-blue-700">{t.editBtn}</button>
               <button type="button" onClick={() => handleDelete(item.id)} className="text-red-600">{t.deleteBtn}</button>
             </div>
           </div>

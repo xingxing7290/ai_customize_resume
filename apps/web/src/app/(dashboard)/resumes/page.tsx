@@ -249,8 +249,8 @@ export default function ResumesPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex gap-3">
-              {profiles.length === 0 && <Link href="/profiles" className="text-sm text-indigo-600">{t.createProfileFirst}</Link>}
-              {jobs.length === 0 && <Link href="/jobs" className="text-sm text-indigo-600">{t.createJobFirst}</Link>}
+              {profiles.length === 0 && <Link href="/profiles" className="text-sm text-blue-700">{t.createProfileFirst}</Link>}
+              {jobs.length === 0 && <Link href="/jobs" className="text-sm text-blue-700">{t.createJobFirst}</Link>}
             </div>
             <button type="submit" disabled={creating || profiles.length === 0 || jobs.length === 0} className="btn-primary disabled:opacity-60">
               {creating ? t.generating : t.startGenerate}
@@ -284,7 +284,7 @@ export default function ResumesPage() {
               <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <span className="text-xs text-slate-400">{new Date(resume.createdAt).toLocaleString()}</span>
                 <div className="flex gap-3">
-                  <Link href={`/resumes/${resume.id}`} className="text-sm text-indigo-600 font-medium">{t.editPublish}</Link>
+                  <Link href={`/resumes/${resume.id}`} className="text-sm text-blue-700 font-medium">{t.editPublish}</Link>
                   <button type="button" onClick={() => handleDelete(resume.id)} className="text-sm text-red-500">{t.delete}</button>
                 </div>
               </div>

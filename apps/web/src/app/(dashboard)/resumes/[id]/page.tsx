@@ -315,14 +315,14 @@ export default function ResumeEditPage() {
           <button type="button" onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-60">{saving ? t.processing : t.saveDraft}</button>
           <button type="button" onClick={handleRegenerate} disabled={saving} className="btn-secondary">{t.regenerate}</button>
           <button type="button" onClick={handleCopy} className="btn-secondary">{t.duplicate}</button>
-          <button type="button" onClick={handlePublish} className="btn-primary bg-emerald-600 hover:bg-emerald-700">{t.publish}</button>
+          <button type="button" onClick={handlePublish} className="btn-primary bg-teal-700 hover:bg-teal-800">{t.publish}</button>
           <button type="button" onClick={handleRegeneratePublicUrl} className="btn-secondary">{t.regenerateLink}</button>
           <button type="button" onClick={handleDownloadPdf} className="btn-secondary">{t.downloadPdf}</button>
         </div>
       </div>
 
       {message && <div className="card break-all px-4 py-3 text-sm text-slate-700">{message}</div>}
-      {publicUrl && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 break-all">{publicUrl}</a>}
+      {publicUrl && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-700 break-all">{publicUrl}</a>}
 
       <section className="card p-4">
         <div className="mb-3">

@@ -68,12 +68,12 @@ export default function PublicResumePage() {
   };
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-500">{t.loading}</div>;
+    return <div className="app-shell flex min-h-screen items-center justify-center text-slate-500">{t.loading}</div>;
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+      <div className="app-shell flex min-h-screen items-center justify-center px-4">
         <div className="text-center">
           <h1 className="mb-3 text-2xl font-bold text-slate-900">{t.inaccessible}</h1>
           <p className="text-slate-500">{error}</p>
@@ -85,9 +85,9 @@ export default function PublicResumePage() {
   if (!resume) return null;
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
-      <div className="mx-auto mb-4 flex max-w-[820px] justify-end rounded border border-slate-200 bg-white p-3 print:hidden">
-        <button type="button" onClick={handleDownloadPdf} className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+    <main className="app-shell min-h-screen px-4 py-6">
+      <div className="mx-auto mb-4 flex max-w-[820px] justify-end rounded-lg border border-slate-200 bg-white/88 p-3 shadow-sm print:hidden">
+        <button type="button" onClick={handleDownloadPdf} className="btn-primary">
           {t.downloadPdf}
         </button>
       </div>

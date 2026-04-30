@@ -114,7 +114,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
@@ -203,7 +203,7 @@ export default function DashboardPage() {
           {jobs.length === 0 ? (
             <div className="text-center py-8 text-slate-500">
               <p>{t.noJobs}</p>
-              <Link href="/jobs" className="mt-2 inline-flex items-center text-sm text-indigo-600">
+              <Link href="/jobs" className="mt-2 inline-flex items-center text-sm text-blue-700">
                 {t.addJob} →
               </Link>
             </div>
@@ -229,7 +229,7 @@ export default function DashboardPage() {
           {resumes.length === 0 ? (
             <div className="text-center py-8 text-slate-500">
               <p>{t.noResumes}</p>
-              <Link href="/resumes" className="mt-2 inline-flex items-center text-sm text-indigo-600">
+              <Link href="/resumes" className="mt-2 inline-flex items-center text-sm text-blue-700">
                 {t.createResume} →
               </Link>
             </div>
@@ -245,7 +245,7 @@ export default function DashboardPage() {
                   </div>
                   <Link
                     href={`/resumes/${resume.id}`}
-                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    className="text-sm font-medium text-blue-700 hover:text-blue-800"
                   >
                     {t.edit}
                   </Link>
@@ -275,7 +275,7 @@ export default function DashboardPage() {
               </Link>
             )}
             {defaultProfile && jobs.length > 0 && (
-              <Link href="/resumes" className="btn-secondary bg-white text-indigo-600 hover:bg-white/90">
+              <Link href="/resumes" className="btn-secondary bg-white text-blue-700 hover:bg-white/90">
                 {t.step3}
               </Link>
             )}

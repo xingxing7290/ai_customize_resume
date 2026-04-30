@@ -31,7 +31,7 @@ export function TemplateSelector({ selected, onSelect }: TemplateSelectorProps) 
             key={template.id}
             type="button"
             onClick={() => onSelect(template.id)}
-            className={`group overflow-hidden rounded-md border bg-white text-left transition hover:border-slate-400 ${active ? 'border-indigo-600 ring-2 ring-indigo-600 ring-offset-2' : 'border-slate-200'}`}
+            className={`group overflow-hidden rounded-md border bg-white text-left transition hover:border-slate-400 ${active ? 'border-blue-600 ring-2 ring-blue-600 ring-offset-2' : 'border-slate-200'}`}
           >
             <div className="aspect-[4/5] p-3" style={{ background: swatch.panel }}>
               <TemplateThumb accent={swatch.accent} pattern={swatch.pattern} />

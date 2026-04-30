@@ -175,7 +175,7 @@ export default function ProfilesPage() {
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[200px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
         </div>
       ) : profiles.length === 0 ? (
         <div className="card p-12 text-center">
@@ -188,8 +188,8 @@ export default function ProfilesPage() {
             <div key={profile.id} className="card p-6 hover:shadow-lg">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <span className="text-indigo-600 font-semibold">{profile.name.charAt(0)}</span>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-blue-700 font-semibold">{profile.name.charAt(0)}</span>
                   </div>
                   <div>
                     <h3 className="font-semibold text-slate-800">{profile.name}</h3>
@@ -218,7 +218,7 @@ export default function ProfilesPage() {
                       {t.setDefault}
                     </button>
                   )}
-                  <button type="button" onClick={() => handleEdit(profile)} className="text-xs text-indigo-600 hover:text-indigo-700">
+                  <button type="button" onClick={() => handleEdit(profile)} className="text-xs text-blue-700 hover:text-blue-800">
                     {t.edit}
                   </button>
                   <button type="button" onClick={() => handleDelete(profile.id)} className="text-xs text-red-500 hover:text-red-700">

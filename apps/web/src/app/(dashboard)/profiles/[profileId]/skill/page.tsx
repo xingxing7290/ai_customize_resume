@@ -140,25 +140,25 @@ export default function SkillPage() {
       </div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t.title}</h1>
-        <button onClick={() => { setShowForm(true); setEditingId(null); }} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{t.add}</button>
+        <button onClick={() => { setShowForm(true); setEditingId(null); }} className="btn-primary">{t.add}</button>
       </div>
 
       {showForm && (
-        <div className="mb-6 bg-white p-6 rounded-lg shadow">
+        <div className="card mb-6 p-6">
           <h2 className="text-lg font-medium mb-4">{editingId ? t.formTitleEdit : t.formTitleAdd}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">{t.skillName}</label>
-                <input type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="text" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input mt-1" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">{t.category}</label>
-                <input type="text" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder={t.categoryPlaceholder} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="text" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder={t.categoryPlaceholder} className="input mt-1" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">{t.level}</label>
-                <select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                <select value={form.level} onChange={e => setForm({ ...form, level: e.target.value })} className="input mt-1">
                   <option value="">{t.selectLevel}</option>
                   <option value={language === 'en' ? 'Beginner' : '了解'}>{t.levels.beginner}</option>
                   <option value={language === 'en' ? 'Familiar' : '熟悉'}>{t.levels.familiar}</option>
@@ -168,14 +168,14 @@ export default function SkillPage() {
               </div>
             </div>
             <div className="flex justify-end space-x-3">
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700">{t.cancel}</button>
-              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">{editingId ? t.save : t.create}</button>
+              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="btn-secondary">{t.cancel}</button>
+              <button type="submit" className="btn-primary">{editingId ? t.save : t.create}</button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="card overflow-hidden">
         {skills.length === 0 ? <div className="text-center py-8 text-gray-500">{t.empty}</div> : (
           <div className="p-6">
             {Object.entries(groupedSkills).map(([category, categorySkills]) => (
@@ -187,7 +187,7 @@ export default function SkillPage() {
                       <span className="font-medium text-gray-900">{skill.name}</span>
                       {skill.level && <span className="text-xs text-gray-500">({skill.level})</span>}
                       <div className="hidden group-hover:flex gap-1 ml-2">
-                        <button onClick={() => handleEdit(skill)} className="text-xs text-indigo-600 hover:text-indigo-800">{t.edit}</button>
+                        <button onClick={() => handleEdit(skill)} className="text-xs text-blue-700 hover:text-blue-900">{t.edit}</button>
                         <button onClick={() => handleDelete(skill.id)} className="text-xs text-red-600 hover:text-red-800">{t.delete}</button>
                       </div>
                     </div>

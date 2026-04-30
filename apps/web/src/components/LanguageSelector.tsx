@@ -10,7 +10,7 @@ interface LanguageSelectorProps {
 
 export function LanguageSelector({ language, onChange, compact = false }: LanguageSelectorProps) {
   return (
-    <div className="inline-flex rounded-md border border-slate-200 bg-white p-1 shadow-sm" aria-label="Language selector">
+    <div className="inline-flex rounded-md border border-slate-200 bg-white/88 p-1 shadow-sm backdrop-blur" aria-label="Language selector">
       <button
         type="button"
         onClick={() => onChange('zh')}
@@ -33,6 +33,6 @@ function buttonClass(active: boolean, compact: boolean) {
   return [
     'rounded px-3 py-1.5 text-sm font-medium transition',
     compact ? 'px-2 py-1 text-xs' : '',
-    active ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+    active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
   ].join(' ');
 }

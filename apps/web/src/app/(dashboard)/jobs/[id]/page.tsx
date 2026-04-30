@@ -258,7 +258,7 @@ export default function JobDetailPage() {
             {job.sourceUrl && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">{t.jobUrl}</label>
-                <a href={job.sourceUrl} target="_blank" rel="noreferrer" className="text-sm text-indigo-600 break-all">{job.sourceUrl}</a>
+                <a href={job.sourceUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-700 break-all">{job.sourceUrl}</a>
               </div>
             )}
             <div>
@@ -291,7 +291,7 @@ export default function JobDetailPage() {
               {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name} / {profile.email}</option>)}
             </select>
             {profiles.length === 0 && (
-              <Link href="/profiles" className="text-sm text-indigo-600 inline-block mt-2">{t.createProfileFirst}</Link>
+              <Link href="/profiles" className="text-sm text-blue-700 inline-block mt-2">{t.createProfileFirst}</Link>
             )}
           </div>
 

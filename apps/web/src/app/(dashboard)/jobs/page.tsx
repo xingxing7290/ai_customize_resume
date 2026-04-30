@@ -45,7 +45,7 @@ const statusText = {
 const statusClass: Record<string, string> = {
   INIT: 'bg-slate-100 text-slate-600',
   PARSING: 'bg-amber-100 text-amber-700',
-  PARSE_SUCCESS: 'bg-emerald-100 text-emerald-700',
+  PARSE_SUCCESS: 'bg-teal-100 text-teal-700',
   PARSE_FAILED: 'bg-red-100 text-red-700',
 };
 
@@ -256,7 +256,7 @@ export default function JobsPage() {
               <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <span className="text-xs text-slate-400">{new Date(job.createdAt).toLocaleString()}</span>
                 <div className="flex gap-3">
-                  <Link href={`/jobs/${job.id}`} className="text-sm text-indigo-600 font-medium">{t.viewAndGenerate}</Link>
+                  <Link href={`/jobs/${job.id}`} className="text-sm text-blue-700 font-medium">{t.viewAndGenerate}</Link>
                   <button type="button" onClick={() => handleDelete(job.id)} className="text-sm text-red-500">{t.delete}</button>
                 </div>
               </div>
@@ -271,7 +271,7 @@ export default function JobsPage() {
 function Step({ index, title, text, prefix }: { index: number; title: string; text: string; prefix: string }) {
   return (
     <div className="card p-4">
-      <div className="text-xs font-semibold text-indigo-600">{prefix} {index}</div>
+      <div className="text-xs font-semibold text-blue-700">{prefix} {index}</div>
       <div className="font-medium text-slate-900 mt-1">{title}</div>
       <div className="text-sm text-slate-500 mt-1">{text}</div>
     </div>

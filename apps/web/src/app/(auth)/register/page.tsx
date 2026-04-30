@@ -10,9 +10,9 @@ import { api } from '@/lib/api';
 const copy = {
   zh: {
     brand: '简历定制',
-    heroTitle: '开启求职新体验',
-    heroText: '注册账户，使用 AI 驱动的智能简历定制服务。',
-    points: ['免费创建个人档案', '按岗位生成定制简历', '一键分享公开链接'],
+    heroTitle: '建立你的岗位定制简历工作台',
+    heroText: '从主档案出发，围绕每个招聘要求重组技能、项目和工作经历。',
+    points: ['统一维护主档案', '岗位要求结构化解析', '生成可分享的简历版本'],
     title: '创建账户',
     subtitle: '填写以下信息开始使用',
     name: '姓名',
@@ -32,9 +32,9 @@ const copy = {
   },
   en: {
     brand: 'Resume Studio',
-    heroTitle: 'Build a better job search flow',
-    heroText: 'Create an account and tailor resumes with AI for each target role.',
-    points: ['Create a profile for free', 'Generate role-specific resumes', 'Share public resume links'],
+    heroTitle: 'Create your role-specific resume workspace',
+    heroText: 'Start from one profile, then adapt skills, projects, and work history for each job.',
+    points: ['Maintain one master profile', 'Parse job requirements', 'Generate shareable resume versions'],
     title: 'Create Account',
     subtitle: 'Enter your details to get started',
     name: 'Name',
@@ -92,15 +92,15 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen">
+    <div className="app-shell relative flex min-h-screen">
       <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
         <LanguageSelector language={language} onChange={setLanguage} />
       </div>
 
-      <div className="gradient-accent hidden items-center justify-center p-12 lg:flex lg:w-1/2">
+      <div className="theme-band hidden items-center justify-center p-12 lg:flex lg:w-1/2">
         <div className="max-w-md text-white">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/20 bg-white/15">
               <span className="text-2xl font-bold">AI</span>
             </div>
             <span className="text-2xl font-bold">{t.brand}</span>
@@ -109,8 +109,8 @@ export default function RegisterPage() {
           <p className="mb-8 text-lg opacity-90">{t.heroText}</p>
           <div className="space-y-4">
             {t.points.map((point) => (
-              <div key={point} className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">✓</div>
+              <div key={point} className="flex items-center gap-3 rounded-lg border border-white/15 bg-white/10 px-4 py-3">
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white/15 text-sm font-bold">✓</div>
                 <span>{point}</span>
               </div>
             ))}
@@ -118,11 +118,11 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center bg-slate-50 p-8">
+      <div className="flex flex-1 items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
             <div className="mb-6 flex items-center justify-center gap-2 lg:hidden">
-              <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-lg">
+              <div className="brand-mark h-10 w-10">
                 <span className="font-bold text-white">AI</span>
               </div>
               <span className="text-xl font-bold text-slate-800">{t.brand}</span>
@@ -131,7 +131,7 @@ export default function RegisterPage() {
             <p className="mt-2 text-slate-500">{t.subtitle}</p>
           </div>
 
-          <div className="card p-8">
+          <div className="auth-panel rounded-lg p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
                 <div className="rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</div>

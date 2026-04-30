@@ -124,9 +124,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* 页面标题 */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">{t.title}</h1>
-        <p className="text-slate-500 mt-1">{t.subtitle}</p>
+      <div className="rounded-lg border border-slate-200 bg-white/78 px-6 py-5 shadow-sm">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-700">AI Resume Workspace</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t.title}</h1>
+        <p className="mt-1 text-slate-500">{t.subtitle}</p>
       </div>
 
       {/* 统计卡片 */}
@@ -137,8 +138,8 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-slate-500">{t.profiles}</p>
               <p className="text-3xl font-bold text-slate-800 mt-2">{profiles.length}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <span className="text-2xl">👤</span>
+            <div className="metric-icon">
+              <span>Profile</span>
             </div>
           </div>
           <p className="text-sm text-slate-500 mt-4">
@@ -146,7 +147,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/profiles"
-            className="mt-4 inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            className="mt-4 inline-flex items-center text-sm font-semibold text-blue-700 hover:text-blue-800"
           >
             {t.manageProfiles} →
           </Link>
@@ -158,8 +159,8 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-slate-500">{t.jobs}</p>
               <p className="text-3xl font-bold text-slate-800 mt-2">{jobs.length}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <span className="text-2xl">🎯</span>
+            <div className="metric-icon border-teal-100 text-teal-700">
+              <span>Job</span>
             </div>
           </div>
           <p className="text-sm text-slate-500 mt-4">
@@ -167,7 +168,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/jobs"
-            className="mt-4 inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700"
+            className="mt-4 inline-flex items-center text-sm font-semibold text-teal-700 hover:text-teal-800"
           >
             {t.manageJobs} →
           </Link>
@@ -179,8 +180,8 @@ export default function DashboardPage() {
               <p className="text-sm font-medium text-slate-500">{t.resumes}</p>
               <p className="text-3xl font-bold text-slate-800 mt-2">{resumes.length}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-              <span className="text-2xl">📄</span>
+            <div className="metric-icon border-slate-200 text-slate-800">
+              <span>CV</span>
             </div>
           </div>
           <p className="text-sm text-slate-500 mt-4">
@@ -188,7 +189,7 @@ export default function DashboardPage() {
           </p>
           <Link
             href="/resumes"
-            className="mt-4 inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-700"
+            className="mt-4 inline-flex items-center text-sm font-semibold text-slate-800 hover:text-blue-700"
           >
             {t.manageResumes} →
           </Link>
@@ -209,7 +210,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {jobs.slice(0, 5).map(job => (
-                <div key={job.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                <div key={job.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/80 p-3">
                   <div>
                     <p className="font-medium text-slate-800">{job.parsedJobTitle || t.pendingParse}</p>
                     <p className="text-sm text-slate-500">{job.parsedCompanyName || t.unknownCompany}</p>
@@ -235,7 +236,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {resumes.slice(0, 5).map(resume => (
-                <div key={resume.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                <div key={resume.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/80 p-3">
                   <div>
                     <p className="font-medium text-slate-800">{resume.name}</p>
                     <p className="text-sm text-slate-500">
@@ -256,7 +257,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 快速开始 */}
-      <div className="card p-8 gradient-primary text-white">
+      <div className="card theme-band p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">{t.quickStart}</h2>

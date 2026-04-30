@@ -6,7 +6,10 @@ import {
   Delete,
   Body,
   Param,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto, UpdateProfileDto } from './dto';
@@ -44,6 +47,17 @@ export class ProfilesController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.profilesService.update(userId, id, dto);
+  }
+
+  @Post(':id/avatar')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
+  @ApiOperation({ summary: 'Upload profile avatar' })
+  uploadAvatar(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: any,
+  ) {
+    return this.profilesService.uploadAvatar(userId, id, file);
   }
 
   @Delete(':id')

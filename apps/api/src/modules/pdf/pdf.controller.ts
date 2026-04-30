@@ -141,6 +141,7 @@ export class PdfController {
         email: resume.profile.email,
         phone: resume.profile.phone ?? undefined,
         location: resume.profile.location ?? undefined,
+        avatarUrl: resume.profile.avatarUrl ?? undefined,
         summary: resume.profile.summary ?? undefined,
       },
       educationRecords: (resume.profile.educationRecords || []).map((education: any) => ({

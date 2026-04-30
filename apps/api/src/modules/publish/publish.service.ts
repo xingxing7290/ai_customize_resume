@@ -81,6 +81,7 @@ export class PublishService {
         email: version.profile?.email,
         phone: version.profile?.phone ?? undefined,
         location: version.profile?.location ?? undefined,
+        avatarUrl: version.profile?.avatarUrl ?? undefined,
         summary: version.profile?.summary ?? undefined,
       },
       educationRecords: (version.profile?.educationRecords || []).map((education: any) => ({

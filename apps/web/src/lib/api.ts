@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
 
 interface ApiResponse<T> {
   data?: T;
@@ -89,6 +89,42 @@ export async function apiFetch<T>(
   }
 }
 
+export function resolveAssetUrl(value?: string | null) {
+  if (!value) return '';
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  return `${API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
+}
+
+async function apiUpload<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+  const headers: HeadersInit = {};
+
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      return { code: response.status, message: payload.message || 'Upload failed' };
+    }
+
+    const data = Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+    return { data: normalizePayload(data) as T };
+  } catch {
+    return { code: 500, message: 'Network error' };
+  }
+}
+
 export const api = {
   auth: {
     register: (data: { email: string; password: string; name?: string }) =>
@@ -129,6 +165,11 @@ export const api = {
     get: (id: string) => apiFetch<any>(`/profiles/${id}`),
     create: (data: any) => apiFetch<any>('/profiles', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/profiles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    uploadAvatar: (id: string, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiUpload<any>(`/profiles/${id}/avatar`, formData);
+    },
     delete: (id: string) => apiFetch<void>(`/profiles/${id}`, { method: 'DELETE' }),
   },
 

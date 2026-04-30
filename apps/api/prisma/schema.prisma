@@ -32,6 +32,7 @@ model ResumeProfile {
   email         String
   phone         String?
   location      String?
+  avatarUrl     String?
   website       String?
   github        String?
   linkedin      String?

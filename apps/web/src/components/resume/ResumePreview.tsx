@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { resolveAssetUrl } from '@/lib/api';
 
 export type ResumeTemplate =
   | 'azurill'
@@ -18,6 +19,7 @@ export interface ResumePreviewData {
     email: string;
     phone?: string;
     location?: string;
+    avatarUrl?: string;
     summary?: string;
   };
   jobTarget?: {
@@ -172,7 +174,7 @@ function Azurill({ resume, target, sections }: TemplateProps) {
       <Header resume={resume} target={target} align="center" />
       <div className="mt-6 grid gap-7 md:grid-cols-[220px_1fr]">
         <aside className="space-y-5">
-          <Avatar name={resume.profile.name} />
+          <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} />
           <TextSection title="个人简介" text={sections.summary} />
           <EducationSection items={sections.education} />
           <SkillsSection skills={sections.skills} />
@@ -191,7 +193,7 @@ function Azurill({ resume, target, sections }: TemplateProps) {
 function Bronzor({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="bronzor" className="p-8">
-      <Header resume={resume} target={target} align="center" />
+      <Header resume={resume} target={target} align="center" showAvatar />
       <main className="mt-6 space-y-0">
         <GridSection title="个人简介"><Paragraph text={sections.summary} /></GridSection>
         <GridSection title="教育经历"><EducationList items={sections.education} /></GridSection>
@@ -217,7 +219,7 @@ function Chikorita({ resume, target, sections }: TemplateProps) {
         <TextSection title="自我评价" text={sections.evaluation} />
       </main>
       <aside className="space-y-6 bg-[var(--accent)] p-7 text-white">
-        <Avatar name={resume.profile.name} inverted />
+        <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} inverted />
         <ContactBlock resume={resume} inverted />
         <SidebarSection title="技能特长"><SkillTags skills={sections.skills} inverted /></SidebarSection>
         <SidebarSection title="证书/奖项"><PlainList items={sections.certificates} /></SidebarSection>
@@ -229,9 +231,12 @@ function Chikorita({ resume, target, sections }: TemplateProps) {
 function Ditto({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="ditto">
-      <header className="bg-[var(--accent)] px-8 py-8 text-white">
-        <h1 className="text-4xl font-bold">{resume.profile.name || '未命名'}</h1>
-        {target && <p className="mt-3 text-base font-medium text-white/90">求职意向：{target}</p>}
+      <header className="flex items-center justify-between gap-6 bg-[var(--accent)] px-8 py-8 text-white">
+        <div>
+          <h1 className="text-4xl font-bold">{resume.profile.name || '未命名'}</h1>
+          {target && <p className="mt-3 text-base font-medium text-white/90">求职意向：{target}</p>}
+        </div>
+        <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} inverted />
       </header>
       <div className="border-b border-[var(--accent-soft)] px-8 py-3 text-[var(--muted)]">
         <ContactInline resume={resume} />
@@ -257,7 +262,7 @@ function Gengar({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="gengar" className="grid md:grid-cols-[240px_1fr]">
       <aside className="space-y-6 bg-[var(--accent-ink)] p-7 text-white">
-        <Avatar name={resume.profile.name} inverted />
+        <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} inverted />
         <h1 className="text-3xl font-bold">{resume.profile.name || '未命名'}</h1>
         {target && <p className="text-sm font-medium text-white/80">求职意向：{target}</p>}
         <ContactBlock resume={resume} inverted />
@@ -279,9 +284,12 @@ function Onyx({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="onyx" className="p-8">
       <header className="flex flex-col gap-4 border-b-2 border-[var(--accent)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-semibold tracking-normal text-[var(--heading)]">{resume.profile.name || '未命名'}</h1>
-          {target && <p className="mt-2 font-medium text-[var(--accent)]">求职意向：{target}</p>}
+        <div className="flex items-center gap-4">
+          <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} />
+          <div>
+            <h1 className="text-4xl font-semibold tracking-normal text-[var(--heading)]">{resume.profile.name || '未命名'}</h1>
+            {target && <p className="mt-2 font-medium text-[var(--accent)]">求职意向：{target}</p>}
+          </div>
         </div>
         <ContactBlock resume={resume} />
       </header>
@@ -302,7 +310,7 @@ function Pikachu({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="pikachu" className="grid gap-0 md:grid-cols-[225px_1fr]">
       <aside className="space-y-6 bg-[var(--panel)] p-7">
-        <Avatar name={resume.profile.name} />
+        <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} />
         <ContactBlock resume={resume} />
         <SkillsSection skills={sections.skills} />
         <ListSection title="证书/奖项" items={sections.certificates} />
@@ -330,7 +338,7 @@ function Rhyhorn({ resume, target, sections }: TemplateProps) {
           <h1 className="text-4xl font-bold text-[var(--heading)]">{resume.profile.name || '未命名'}</h1>
           {target && <p className="mt-2 font-medium text-[var(--accent)]">求职意向：{target}</p>}
         </div>
-        <Avatar name={resume.profile.name} />
+        <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} />
       </header>
       <div className="mt-3 flex flex-wrap divide-x divide-[var(--accent-soft)] text-sm text-[var(--muted)]">
         {[resume.profile.email, resume.profile.phone, resume.profile.location].filter(Boolean).map((item) => (
@@ -354,6 +362,7 @@ function Ditgar({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="ditgar" className="grid md:grid-cols-[235px_1fr]">
       <aside className="space-y-6 bg-[var(--accent)] p-7 text-white">
+        <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} inverted />
         <h1 className="text-3xl font-bold">{resume.profile.name || '未命名'}</h1>
         {target && <p className="text-sm font-medium text-white/85">求职意向：{target}</p>}
         <ContactBlock resume={resume} inverted />
@@ -375,6 +384,7 @@ function Meowth({ resume, target, sections }: TemplateProps) {
   return (
     <Frame template="meowth" className="p-7 text-[13px] leading-normal shadow-none">
       <header className="border-b border-neutral-800 pb-3 text-center">
+        {resume.profile.avatarUrl && <div className="mb-3 flex justify-center"><Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} /></div>}
         <h1 className="text-3xl font-semibold tracking-normal">{resume.profile.name || '未命名'}</h1>
         {target && <p className="mt-1 font-medium">求职意向：{target}</p>}
         <div className="mt-2"><ContactInline resume={resume} /></div>
@@ -398,9 +408,14 @@ interface TemplateProps {
   sections: BuiltSections;
 }
 
-function Header({ resume, target, align }: { resume: ResumePreviewData; target?: string; align?: 'center' }) {
+function Header({ resume, target, align, showAvatar = false }: { resume: ResumePreviewData; target?: string; align?: 'center'; showAvatar?: boolean }) {
   return (
     <header className={`border-b-2 border-[var(--accent)] pb-5 ${align === 'center' ? 'text-center' : ''}`}>
+      {showAvatar && resume.profile.avatarUrl && (
+        <div className={`mb-3 flex ${align === 'center' ? 'justify-center' : ''}`}>
+          <Avatar name={resume.profile.name} avatarUrl={resume.profile.avatarUrl} />
+        </div>
+      )}
       <h1 className="text-4xl font-bold tracking-normal text-[var(--heading)]">{resume.profile.name || '未命名'}</h1>
       {target && <p className="mt-2 font-semibold text-[var(--accent)]">求职意向：{target}</p>}
       <div className={`mt-3 ${align === 'center' ? 'justify-center' : ''}`}><ContactInline resume={resume} /></div>
@@ -408,8 +423,18 @@ function Header({ resume, target, align }: { resume: ResumePreviewData; target?:
   );
 }
 
-function Avatar({ name, inverted = false }: { name?: string; inverted?: boolean }) {
+function Avatar({ name, avatarUrl, inverted = false }: { name?: string; avatarUrl?: string; inverted?: boolean }) {
   const initials = (name || '简历').trim().slice(0, 2);
+  if (avatarUrl) {
+    return (
+      <img
+        src={resolveAssetUrl(avatarUrl)}
+        alt={name || 'Resume photo'}
+        className={`h-20 w-20 rounded-full border object-cover ${inverted ? 'border-white/35' : 'border-[var(--accent-soft)]'}`}
+      />
+    );
+  }
+
   return (
     <div className={`flex h-20 w-20 items-center justify-center rounded-full border text-xl font-bold ${inverted ? 'border-white/35 bg-white/15 text-white' : 'border-[var(--accent-soft)] bg-[var(--panel)] text-[var(--accent)]'}`}>
       {initials}

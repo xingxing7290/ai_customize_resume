@@ -1,13 +1,22 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import { FileLoggerService } from './common/logger/file-logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const fileLogger = app.get(FileLoggerService);
   app.useLogger(fileLogger);
+
+  const uploadRoot = join(process.cwd(), 'uploads');
+  if (!existsSync(uploadRoot)) {
+    mkdirSync(uploadRoot, { recursive: true });
+  }
+  app.useStaticAssets(uploadRoot, { prefix: '/uploads/' });
 
   // Enable CORS
   app.enableCors({

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ChangeEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api, resolveAssetUrl } from '@/lib/api';
 import { useLanguage } from '@/lib/language';
 
 interface Profile {
@@ -12,6 +12,7 @@ interface Profile {
   phone?: string;
   location?: string;
   summary?: string;
+  avatarUrl?: string;
   isDefault: boolean;
 }
 
@@ -19,8 +20,8 @@ const emptyForm = { name: '', email: '', phone: '', location: '', summary: '' };
 
 const copy = {
   zh: {
-    title: '主档案管理',
-    subtitle: '维护基础信息、教育、工作、项目、技能和证书',
+    title: '档案管理',
+    subtitle: '维护基础信息、照片、教育、工作、项目、技能和证书',
     newProfile: '+ 新建档案',
     editProfile: '编辑档案',
     createProfile: '新建档案',
@@ -43,11 +44,16 @@ const copy = {
     setDefault: '设为默认',
     edit: '编辑',
     delete: '删除',
+    uploadPhoto: '上传照片',
+    changePhoto: '更换照片',
+    uploadingPhoto: '上传中...',
+    photoHelp: '支持 JPG、PNG、WEBP、SVG，最大 2MB。照片会同步用于简历链接和 PDF。',
+    uploadFailed: '照片上传失败',
     deleteConfirm: '确定删除这个档案吗？',
   },
   en: {
     title: 'Profile Management',
-    subtitle: 'Maintain basic info, education, work, projects, skills, and certificates',
+    subtitle: 'Maintain basic info, photo, education, work, projects, skills, and certificates',
     newProfile: '+ New Profile',
     editProfile: 'Edit Profile',
     createProfile: 'New Profile',
@@ -70,6 +76,11 @@ const copy = {
     setDefault: 'Set default',
     edit: 'Edit',
     delete: 'Delete',
+    uploadPhoto: 'Upload Photo',
+    changePhoto: 'Change Photo',
+    uploadingPhoto: 'Uploading...',
+    photoHelp: 'JPG, PNG, WEBP, or SVG up to 2MB. The photo is used in public links and PDF output.',
+    uploadFailed: 'Photo upload failed',
     deleteConfirm: 'Delete this profile?',
   },
 } as const;
@@ -81,6 +92,7 @@ export default function ProfilesPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState('');
 
@@ -137,12 +149,30 @@ export default function ProfilesPage() {
     await loadProfiles();
   };
 
+  const handleAvatarUpload = async (profileId: string, event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setMessage('');
+    setUploadingId(profileId);
+    const result = await api.profiles.uploadAvatar(profileId, file);
+    setUploadingId(null);
+
+    if (result.message) {
+      setMessage(`${t.uploadFailed}: ${result.message}`);
+      return;
+    }
+
+    await loadProfiles();
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">{t.title}</h1>
-          <p className="text-slate-500 mt-1">{t.subtitle}</p>
+          <p className="mt-1 text-slate-500">{t.subtitle}</p>
         </div>
         <button type="button" onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }} className="btn-primary">
           {t.newProfile}
@@ -153,18 +183,19 @@ export default function ProfilesPage() {
 
       {showForm && (
         <div className="card p-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">{editingId ? t.editProfile : t.createProfile}</h2>
+          <h2 className="mb-4 text-lg font-semibold text-slate-800">{editingId ? t.editProfile : t.createProfile}</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field label={t.name} value={form.name} onChange={(value) => setForm({ ...form, name: value })} required />
               <Field label={t.email} value={form.email} onChange={(value) => setForm({ ...form, email: value })} required type="email" />
               <Field label={t.phone} value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} />
               <Field label={t.location} value={form.location} onChange={(value) => setForm({ ...form, location: value })} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">{t.summary}</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700">{t.summary}</label>
               <textarea className="input" rows={3} value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} />
             </div>
+            <p className="text-xs text-slate-500">{t.photoHelp}</p>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={resetForm} className="btn-secondary">{t.cancel}</button>
               <button type="button" onClick={handleSave} className="btn-primary">{editingId ? t.save : t.create}</button>
@@ -174,23 +205,21 @@ export default function ProfilesPage() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center min-h-[200px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="flex min-h-[200px] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
         </div>
       ) : profiles.length === 0 ? (
         <div className="card p-12 text-center">
-          <p className="text-slate-600 mb-2">{t.emptyTitle}</p>
-          <p className="text-slate-500 text-sm">{t.emptyHint}</p>
+          <p className="mb-2 text-slate-600">{t.emptyTitle}</p>
+          <p className="text-sm text-slate-500">{t.emptyHint}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {profiles.map((profile) => (
             <div key={profile.id} className="card p-6 hover:shadow-lg">
-              <div className="flex items-start justify-between mb-4">
+              <div className="mb-4 flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-blue-700 font-semibold">{profile.name.charAt(0)}</span>
-                  </div>
+                  <ProfileAvatar profile={profile} />
                   <div>
                     <h3 className="font-semibold text-slate-800">{profile.name}</h3>
                     {profile.isDefault && <span className="tag tag-primary">{t.default}</span>}
@@ -199,18 +228,32 @@ export default function ProfilesPage() {
               </div>
 
               <div className="space-y-2 text-sm text-slate-600">
-                <p>{t.email}：{profile.email}</p>
-                {profile.phone && <p>{t.phone}：{profile.phone}</p>}
-                {profile.location && <p>{t.location}：{profile.location}</p>}
+                <p>{t.email}: {profile.email}</p>
+                {profile.phone && <p>{t.phone}: {profile.phone}</p>}
+                {profile.location && <p>{t.location}: {profile.location}</p>}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <Link href={`/profiles/${profile.id}/education`} className="btn-secondary text-center text-xs py-2">{t.education}</Link>
-                  <Link href={`/profiles/${profile.id}/work`} className="btn-secondary text-center text-xs py-2">{t.work}</Link>
-                  <Link href={`/profiles/${profile.id}/project`} className="btn-secondary text-center text-xs py-2">{t.project}</Link>
-                  <Link href={`/profiles/${profile.id}/skill`} className="btn-secondary text-center text-xs py-2">{t.skill}</Link>
-                  <Link href={`/profiles/${profile.id}/certificate`} className="btn-secondary text-center text-xs py-2">{t.certificate}</Link>
+              <div className="mt-4">
+                <label className="btn-secondary inline-flex cursor-pointer items-center justify-center px-3 py-2 text-xs">
+                  {uploadingId === profile.id ? t.uploadingPhoto : profile.avatarUrl ? t.changePhoto : t.uploadPhoto}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                    className="hidden"
+                    disabled={uploadingId === profile.id}
+                    onChange={(event) => handleAvatarUpload(profile.id, event)}
+                  />
+                </label>
+                <p className="mt-2 text-xs text-slate-500">{t.photoHelp}</p>
+              </div>
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mb-4 grid grid-cols-3 gap-2">
+                  <Link href={`/profiles/${profile.id}/education`} className="btn-secondary py-2 text-center text-xs">{t.education}</Link>
+                  <Link href={`/profiles/${profile.id}/work`} className="btn-secondary py-2 text-center text-xs">{t.work}</Link>
+                  <Link href={`/profiles/${profile.id}/project`} className="btn-secondary py-2 text-center text-xs">{t.project}</Link>
+                  <Link href={`/profiles/${profile.id}/skill`} className="btn-secondary py-2 text-center text-xs">{t.skill}</Link>
+                  <Link href={`/profiles/${profile.id}/certificate`} className="btn-secondary py-2 text-center text-xs">{t.certificate}</Link>
                 </div>
                 <div className="flex justify-end gap-2">
                   {!profile.isDefault && (
@@ -234,12 +277,30 @@ export default function ProfilesPage() {
   );
 }
 
+function ProfileAvatar({ profile }: { profile: Profile }) {
+  if (profile.avatarUrl) {
+    return (
+      <img
+        src={resolveAssetUrl(profile.avatarUrl)}
+        alt={profile.name}
+        className="h-12 w-12 rounded-full border border-slate-200 object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+      <span className="font-semibold text-blue-700">{profile.name.charAt(0)}</span>
+    </div>
+  );
+}
+
 function Field({ label, value, onChange, required, type = 'text' }: {
   label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string;
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
+      <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
       <input type={type} required={required} className="input" value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );

@@ -20,6 +20,11 @@ export class CreateProfileDto {
   @IsString()
   location?: string;
 
+  @ApiProperty({ example: '/uploads/avatars/profile.png', required: false })
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
   @ApiProperty({ example: 'https://example.com', required: false })
   @IsOptional()
   @IsString()

@@ -19,6 +19,7 @@ interface ResumeData {
     email: string;
     phone?: string;
     location?: string;
+    avatarUrl?: string;
     summary?: string;
   };
   educationRecords?: EducationItem[];
@@ -176,7 +177,7 @@ export class PdfService {
 
     if (template === 'bronzor') {
       return `<main class="resume bronzor">
-        ${this.header(resume, target, 'center')}
+        ${this.header(resume, target, 'center', true)}
         ${this.gridSection('个人简介', this.paragraph(summary))}
         ${this.gridSection('技能特长', this.skillTags(resume.contentSkills))}
         ${this.gridSection('工作经历', this.items(resume.contentWorkExperiences, 'work', 'compact'))}
@@ -206,7 +207,7 @@ export class PdfService {
 
     if (template === 'ditto') {
       return `<main class="resume no-pad">
-        <header class="banner"><h1>${this.escape(resume.profile.name || '未命名')}</h1>${target ? `<p>${this.escape(`求职意向：${target}`)}</p>` : ''}</header>
+        <header class="banner banner-with-avatar"><div><h1>${this.escape(resume.profile.name || '未命名')}</h1>${target ? `<p>${this.escape(`求职意向：${target}`)}</p>` : ''}</div>${this.avatar(resume)}</header>
         <div class="contact-strip">${this.contactInline(resume)}</div>
         <div class="columns">
           <aside>${this.section('个人简介', this.paragraph(summary))}${this.section('技能特长', this.skillTags(resume.contentSkills))}${this.section('证书/奖项', this.plainList(resume.contentCertificates))}</aside>
@@ -249,7 +250,7 @@ export class PdfService {
 
     if (template === 'meowth') {
       return `<main class="resume meowth">
-        <header class="meowth-head"><h1>${this.escape(resume.profile.name || '未命名')}</h1>${target ? `<p>${this.escape(`求职意向：${target}`)}</p>` : ''}<div>${this.contactInline(resume)}</div></header>
+        <header class="meowth-head">${resume.profile.avatarUrl ? `<div class="avatar-center">${this.avatar(resume)}</div>` : ''}<h1>${this.escape(resume.profile.name || '未命名')}</h1>${target ? `<p>${this.escape(`求职意向：${target}`)}</p>` : ''}<div>${this.contactInline(resume)}</div></header>
         ${this.section('个人简介', this.paragraph(summary))}
         ${this.section('技能特长', this.skillTags(resume.contentSkills))}
         ${this.section('工作经历', this.items(resume.contentWorkExperiences, 'work', 'compact'))}
@@ -269,7 +270,7 @@ export class PdfService {
 
     if (template === 'onyx') {
       return `<main class="resume onyx">
-        ${this.header(resume, target)}
+        ${this.header(resume, target, undefined, true)}
         ${this.standardSections(resume, summary)}
       </main>`;
     }
@@ -292,8 +293,9 @@ export class PdfService {
       ${this.section('自我评价', this.paragraph(resume.contentSelfEvaluation))}`;
   }
 
-  private header(resume: ParsedResume, target?: string, align?: 'center') {
+  private header(resume: ParsedResume, target?: string, align?: 'center', showAvatar = false) {
     return `<header class="resume-header ${align === 'center' ? 'center' : ''}">
+      ${showAvatar && resume.profile.avatarUrl ? `<div class="avatar-center">${this.avatar(resume)}</div>` : ''}
       <h1>${this.escape(resume.profile.name || '未命名')}</h1>
       ${target ? `<p class="target">${this.escape(`求职意向：${target}`)}</p>` : ''}
       ${this.contactInline(resume)}
@@ -335,7 +337,18 @@ export class PdfService {
   }
 
   private avatar(resume: ParsedResume) {
+    const avatarUrl = this.resolveAssetUrl(resume.profile.avatarUrl);
+    if (avatarUrl) {
+      return `<img class="avatar avatar-img" src="${this.escape(avatarUrl)}" alt="${this.escape(resume.profile.name || 'Resume photo')}" />`;
+    }
     return `<div class="avatar">${this.escape((resume.profile.name || '简历').slice(0, 2))}</div>`;
+  }
+
+  private resolveAssetUrl(value?: string) {
+    if (!value) return '';
+    if (/^(https?:|data:)/i.test(value)) return value;
+    const baseUrl = process.env.PUBLIC_API_URL || process.env.API_PUBLIC_URL || `http://127.0.0.1:${process.env.API_PORT || 3001}`;
+    return `${baseUrl.replace(/\/$/, '')}${value.startsWith('/') ? value : `/${value}`}`;
   }
 
   private skillTags(skills: string[], inverted = false) {
@@ -485,6 +498,7 @@ export class PdfService {
       .soft { min-height: 297mm; padding: 18mm 8mm; background: var(--panel); }
       .summary-card { background: var(--panel); padding: 12px 16px; }
       .banner { background: var(--accent); color: #fff; padding: 20mm 18mm 12mm; }
+      .banner-with-avatar { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
       .banner h1, .banner p { color: #fff; }
       .banner p { margin: 8px 0 0; font-weight: 600; }
       .contact-strip { padding: 4mm 18mm; border-bottom: 1px solid var(--accent-soft); }
@@ -500,6 +514,8 @@ export class PdfService {
       .grid-section { display: grid; grid-template-columns: 34mm 1fr; gap: 8mm; margin-top: 0; padding: 12px 0; border-top: 1px solid var(--accent-soft); }
       .grid-section h2 { border: 0; color: var(--accent); font-size: 10pt; text-transform: uppercase; }
       .avatar { display: flex; align-items: center; justify-content: center; width: 21mm; height: 21mm; margin-bottom: 12px; border-radius: 999px; border: 1px solid var(--accent-soft); background: var(--panel); color: var(--accent); font-size: 16pt; font-weight: 700; }
+      .avatar-img { display: block; object-fit: cover; background: #fff; }
+      .avatar-center { display: flex; justify-content: center; }
       .rail .avatar { border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.14); color: #fff; }
       .skills, .tech { display: flex; flex-wrap: wrap; gap: 6px; }
       .skills span, .tech span { border: 1px solid var(--accent-soft); background: var(--panel); color: var(--accent-ink); padding: 3px 8px; font-size: 9pt; }

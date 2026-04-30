@@ -21,6 +21,7 @@ interface ResumeData {
     location?: string;
     summary?: string;
   };
+  educationRecords?: EducationItem[];
   contentSummary?: string;
   contentSkills?: string | string[] | null;
   contentWorkExperiences?: string | ResumeItem[] | null;
@@ -31,6 +32,16 @@ interface ResumeData {
     parsedJobTitle?: string;
     parsedCompanyName?: string;
   };
+}
+
+interface EducationItem {
+  school?: string;
+  degree?: string;
+  major?: string;
+  startDate?: string;
+  endDate?: string;
+  gpa?: string;
+  description?: string;
 }
 
 interface ResumeItem {
@@ -48,6 +59,7 @@ interface ResumeItem {
 }
 
 interface ParsedResume extends ResumeData {
+  educationRecords: EducationItem[];
   contentSkills: string[];
   contentWorkExperiences: ResumeItem[];
   contentProjectExperiences: ResumeItem[];
@@ -142,6 +154,7 @@ export class PdfService {
   private parseResume(resume: ResumeData): ParsedResume {
     return {
       ...resume,
+      educationRecords: resume.educationRecords || [],
       contentSkills: this.parseJsonArray<string>(resume.contentSkills),
       contentWorkExperiences: this.parseJsonArray<ResumeItem>(resume.contentWorkExperiences).map((exp) => ({
         ...exp,

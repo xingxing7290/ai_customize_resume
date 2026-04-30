@@ -69,7 +69,7 @@ export class ResumesService {
 
       const updated = await this.prisma.resumeVersion.update({
         where: { id: resume.id },
-        data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT'),
+        data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT', profile, this.toJobAiInput(jobTarget)),
         include: {
           jobTarget: true,
           profile: true,
@@ -217,7 +217,7 @@ export class ResumesService {
 
       const updated = await this.prisma.resumeVersion.update({
         where: { id },
-        data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT'),
+        data: this.toGeneratedResumeUpdate(generatedContent, 'READY_EDIT', resume.profile, this.toJobAiInput(jobTarget)),
         include: {
           jobTarget: true,
           profile: true,
@@ -280,18 +280,127 @@ export class ResumesService {
     };
   }
 
-  private toGeneratedResumeUpdate(generatedContent: any, status: string) {
+  private toGeneratedResumeUpdate(generatedContent: any, status: string, profileData?: any, jobData?: any) {
+    const workExperiences = this.normalizeGeneratedWorkExperiences(generatedContent.workExperiences);
+    const projectExperiences = this.normalizeGeneratedProjectExperiences(generatedContent.projectExperiences);
+    const jobKeywords = this.toStringArray([
+      jobData?.jobTitle,
+      ...(jobData?.techStack || []),
+      ...(jobData?.requirements || []),
+      ...(jobData?.responsibilities || []),
+    ]);
+    const safeWorkExperiences = workExperiences.length ? workExperiences : this.normalizeSourceWorkExperiences(profileData?.workExperiences, jobKeywords);
+    const safeProjectExperiences = projectExperiences.length ? projectExperiences : this.normalizeSourceProjectExperiences(profileData?.projectExperiences, jobKeywords);
+
     return {
       status,
       contentSummary: generatedContent.summary,
       contentSkills: generatedContent.skills ? JSON.stringify(generatedContent.skills) : null,
-      contentWorkExperiences: generatedContent.workExperiences ? JSON.stringify(generatedContent.workExperiences) : null,
-      contentProjectExperiences: generatedContent.projectExperiences ? JSON.stringify(generatedContent.projectExperiences) : null,
+      contentWorkExperiences: JSON.stringify(safeWorkExperiences),
+      contentProjectExperiences: JSON.stringify(safeProjectExperiences),
       contentCertificates: generatedContent.certificates ? JSON.stringify(generatedContent.certificates) : null,
       contentSelfEvaluation: generatedContent.selfEvaluation,
       aiOptimizationNotes: generatedContent.optimizationNotes ? JSON.stringify(generatedContent.optimizationNotes) : null,
       aiGapAnalysis: generatedContent.gapAnalysis ? JSON.stringify(generatedContent.gapAnalysis) : null,
     };
+  }
+
+  private normalizeSourceWorkExperiences(items?: any[], jobKeywords: string[] = []) {
+    return (items || []).map((item) => ({
+      company: item.company || '',
+      companyName: item.company || '',
+      title: item.title || '',
+      startDate: item.startDate || '',
+      endDate: item.endDate || (item.isCurrent ? '至今' : ''),
+      description: item.description || '',
+      highlights: this.toStringArray(item.highlights),
+      techStack: this.toStringArray(item.techStack),
+      relevanceScore: this.relevanceScore(item, jobKeywords),
+    }))
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .map(({ relevanceScore, ...item }) => item);
+  }
+
+  private normalizeSourceProjectExperiences(items?: any[], jobKeywords: string[] = []) {
+    return (items || []).map((item) => ({
+      name: item.name || '',
+      projectName: item.name || '',
+      role: item.role || '',
+      startDate: item.startDate || '',
+      endDate: item.endDate || '',
+      description: item.description || '',
+      highlights: this.toStringArray(item.highlights),
+      techStack: this.toStringArray(item.techStack),
+      relevanceScore: this.relevanceScore(item, jobKeywords),
+    }))
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .map(({ relevanceScore, ...item }) => item);
+  }
+
+  private normalizeGeneratedWorkExperiences(items?: any[]) {
+    return (items || [])
+      .map((item) => ({
+        company: item.company || item.companyName || '',
+        companyName: item.companyName || item.company || '',
+        title: item.title || item.role || '',
+        startDate: item.startDate || this.parseDuration(item.duration).startDate,
+        endDate: item.endDate || this.parseDuration(item.duration).endDate,
+        description: item.description || '',
+        highlights: this.toStringArray(item.highlights),
+        techStack: this.toStringArray(item.techStack),
+      }))
+      .filter((item) => item.company || item.title || item.highlights.length || item.description);
+  }
+
+  private normalizeGeneratedProjectExperiences(items?: any[]) {
+    return (items || [])
+      .map((item) => ({
+        name: item.name || item.projectName || '',
+        projectName: item.projectName || item.name || '',
+        role: item.role || '',
+        startDate: item.startDate || this.parseDuration(item.duration).startDate,
+        endDate: item.endDate || this.parseDuration(item.duration).endDate,
+        description: item.description || '',
+        highlights: this.toStringArray(item.highlights),
+        techStack: this.toStringArray(item.techStack),
+      }))
+      .filter((item) => item.name || item.projectName || item.highlights.length || item.description);
+  }
+
+  private toStringArray(value: unknown): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+    if (typeof value === 'string') {
+      return value
+        .split(/\r?\n|,|，|;|；|、/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+    return [String(value).trim()].filter(Boolean);
+  }
+
+  private relevanceScore(item: any, jobKeywords: string[]) {
+    const text = [
+      item?.company,
+      item?.title,
+      item?.name,
+      item?.role,
+      item?.description,
+      item?.highlights,
+      item?.techStack,
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return jobKeywords.reduce((score, keyword) => {
+      const normalized = keyword.toLowerCase();
+      if (!normalized) return score;
+      return text.includes(normalized) ? score + 1 : score;
+    }, 0);
+  }
+
+  private parseDuration(duration?: string) {
+    if (!duration) return { startDate: undefined, endDate: undefined };
+    const [startDate, endDate] = duration.split(/\s*[-–—至]\s*/).map((item) => item.trim()).filter(Boolean);
+    return { startDate, endDate };
   }
 
   private parseJsonArray(value?: string | null): string[] {

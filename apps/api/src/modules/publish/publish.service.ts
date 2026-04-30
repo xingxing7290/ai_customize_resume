@@ -26,6 +26,54 @@ export class PublishService {
     return [];
   }
 
+  private toStringArray(value: unknown): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim()).filter(Boolean);
+      } catch {
+        return trimmed
+          .split(/\r?\n|,|，|;|；|、/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    }
+    return [String(value).trim()].filter(Boolean);
+  }
+
+  private normalizeWorkItem(exp: any) {
+    const duration = exp?.duration ? String(exp.duration) : '';
+    const [durationStart, durationEnd] = duration.split(/\s*[-–—至]\s*/).map((item) => item.trim()).filter(Boolean);
+    return {
+      ...exp,
+      company: exp?.company || exp?.companyName,
+      companyName: exp?.companyName || exp?.company,
+      title: exp?.title || exp?.role,
+      startDate: exp?.startDate || durationStart,
+      endDate: exp?.endDate || durationEnd,
+      highlights: this.toStringArray(exp?.highlights),
+      techStack: this.toStringArray(exp?.techStack),
+    };
+  }
+
+  private normalizeProjectItem(proj: any) {
+    const duration = proj?.duration ? String(proj.duration) : '';
+    const [durationStart, durationEnd] = duration.split(/\s*[-–—至]\s*/).map((item) => item.trim()).filter(Boolean);
+    return {
+      ...proj,
+      name: proj?.name || proj?.projectName,
+      projectName: proj?.projectName || proj?.name,
+      startDate: proj?.startDate || durationStart,
+      endDate: proj?.endDate || durationEnd,
+      highlights: this.toStringArray(proj?.highlights),
+      techStack: this.toStringArray(proj?.techStack),
+    };
+  }
+
   private toPublicPreviewData(version: any) {
     return {
       profile: {
@@ -35,6 +83,15 @@ export class PublishService {
         location: version.profile?.location ?? undefined,
         summary: version.profile?.summary ?? undefined,
       },
+      educationRecords: (version.profile?.educationRecords || []).map((education: any) => ({
+        school: education.school,
+        degree: education.degree,
+        major: education.major ?? undefined,
+        startDate: education.startDate,
+        endDate: education.endDate ?? undefined,
+        gpa: education.gpa ?? undefined,
+        description: education.description ?? undefined,
+      })),
       jobTarget: version.jobTarget
         ? {
             parsedJobTitle: version.jobTarget.parsedJobTitle ?? undefined,
@@ -43,16 +100,8 @@ export class PublishService {
         : undefined,
       contentSummary: version.contentSummary ?? undefined,
       contentSkills: this.parseJsonArray<string>(version.contentSkills),
-      contentWorkExperiences: this.parseJsonArray<any>(version.contentWorkExperiences).map((exp: any) => ({
-        ...exp,
-        highlights: this.parseJsonArray<string>(exp?.highlights),
-        techStack: this.parseJsonArray<string>(exp?.techStack),
-      })),
-      contentProjectExperiences: this.parseJsonArray<any>(version.contentProjectExperiences).map((proj: any) => ({
-        ...proj,
-        highlights: this.parseJsonArray<string>(proj?.highlights),
-        techStack: this.parseJsonArray<string>(proj?.techStack),
-      })),
+      contentWorkExperiences: this.parseJsonArray<any>(version.contentWorkExperiences).map((exp: any) => this.normalizeWorkItem(exp)),
+      contentProjectExperiences: this.parseJsonArray<any>(version.contentProjectExperiences).map((proj: any) => this.normalizeProjectItem(proj)),
       contentCertificates: this.parseJsonArray<string>(version.contentCertificates),
       contentSelfEvaluation: version.contentSelfEvaluation ?? undefined,
     };

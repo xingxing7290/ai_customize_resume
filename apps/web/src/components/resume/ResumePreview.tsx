@@ -25,6 +25,7 @@ export interface ResumePreviewData {
     parsedCompanyName?: string;
   };
   contentSummary?: string;
+  educationRecords?: ResumeEducation[];
   contentSkills?: string[];
   contentWorkExperiences?: ResumeItem[];
   contentProjectExperiences?: ResumeItem[];
@@ -44,6 +45,16 @@ export interface ResumeItem {
   description?: string;
   highlights?: string[];
   techStack?: string[];
+}
+
+export interface ResumeEducation {
+  school?: string;
+  degree?: string;
+  major?: string;
+  startDate?: string;
+  endDate?: string;
+  gpa?: string;
+  description?: string;
 }
 
 export interface ResumeTemplateMeta {
@@ -128,6 +139,7 @@ export function ResumePreview({ resume, template = 'azurill' }: { resume: Resume
 interface BuiltSections {
   summary?: string;
   skills: string[];
+  education: ResumeEducation[];
   work: ResumeItem[];
   projects: ResumeItem[];
   certificates: string[];
@@ -138,6 +150,7 @@ function buildSections(resume: ResumePreviewData): BuiltSections {
   return {
     summary: resume.contentSummary || resume.profile.summary,
     skills: resume.contentSkills || [],
+    education: resume.educationRecords || [],
     work: resume.contentWorkExperiences || [],
     projects: resume.contentProjectExperiences || [],
     certificates: resume.contentCertificates || [],
@@ -161,6 +174,7 @@ function Azurill({ resume, target, sections }: TemplateProps) {
         <aside className="space-y-5">
           <Avatar name={resume.profile.name} />
           <TextSection title="个人简介" text={sections.summary} />
+          <EducationSection items={sections.education} />
           <SkillsSection skills={sections.skills} />
           <ListSection title="证书/奖项" items={sections.certificates} />
         </aside>
@@ -180,6 +194,7 @@ function Bronzor({ resume, target, sections }: TemplateProps) {
       <Header resume={resume} target={target} align="center" />
       <main className="mt-6 space-y-0">
         <GridSection title="个人简介"><Paragraph text={sections.summary} /></GridSection>
+        <GridSection title="教育经历"><EducationList items={sections.education} /></GridSection>
         <GridSection title="技能特长"><SkillTags skills={sections.skills} /></GridSection>
         <GridSection title="工作经历"><ItemList items={sections.work} type="work" compact /></GridSection>
         <GridSection title="项目经历"><ItemList items={sections.projects} type="project" compact /></GridSection>
@@ -196,6 +211,7 @@ function Chikorita({ resume, target, sections }: TemplateProps) {
       <main className="space-y-6 p-8">
         <Header resume={resume} target={target} />
         <TextSection title="个人简介" text={sections.summary} />
+        <EducationSection items={sections.education} />
         <ItemSection title="工作经历" items={sections.work} type="work" />
         <ItemSection title="项目经历" items={sections.projects} type="project" />
         <TextSection title="自我评价" text={sections.evaluation} />
@@ -223,6 +239,7 @@ function Ditto({ resume, target, sections }: TemplateProps) {
       <div className="grid gap-7 p-8 md:grid-cols-[220px_1fr]">
         <aside className="space-y-5">
           <TextSection title="个人简介" text={sections.summary} />
+          <EducationSection items={sections.education} />
           <SkillsSection skills={sections.skills} />
           <ListSection title="证书/奖项" items={sections.certificates} />
         </aside>
@@ -249,6 +266,7 @@ function Gengar({ resume, target, sections }: TemplateProps) {
       </aside>
       <main className="space-y-6 p-8">
         {sections.summary && <div className="bg-[var(--panel)] p-5"><TextSection title="个人简介" text={sections.summary} /></div>}
+        <EducationSection items={sections.education} />
         <ItemSection title="工作经历" items={sections.work} type="work" />
         <ItemSection title="项目经历" items={sections.projects} type="project" />
         <TextSection title="自我评价" text={sections.evaluation} />
@@ -269,6 +287,7 @@ function Onyx({ resume, target, sections }: TemplateProps) {
       </header>
       <main className="mt-6 space-y-5">
         <TextSection title="个人简介" text={sections.summary} />
+        <EducationSection items={sections.education} />
         <SkillsSection skills={sections.skills} />
         <ItemSection title="工作经历" items={sections.work} type="work" />
         <ItemSection title="项目经历" items={sections.projects} type="project" />
@@ -294,6 +313,7 @@ function Pikachu({ resume, target, sections }: TemplateProps) {
           {target && <p className="mt-2 font-medium text-white/90">求职意向：{target}</p>}
         </div>
         <TextSection title="个人简介" text={sections.summary} />
+        <EducationSection items={sections.education} />
         <ItemSection title="工作经历" items={sections.work} type="work" />
         <ItemSection title="项目经历" items={sections.projects} type="project" />
         <TextSection title="自我评价" text={sections.evaluation} />
@@ -319,6 +339,7 @@ function Rhyhorn({ resume, target, sections }: TemplateProps) {
       </div>
       <main className="mt-6 space-y-5">
         <TextSection title="个人简介" text={sections.summary} />
+        <EducationSection items={sections.education} />
         <SkillsSection skills={sections.skills} />
         <ItemSection title="工作经历" items={sections.work} type="work" />
         <ItemSection title="项目经历" items={sections.projects} type="project" />
@@ -341,6 +362,7 @@ function Ditgar({ resume, target, sections }: TemplateProps) {
       </aside>
       <main className="space-y-6 p-8">
         <TextSection title="个人简介" text={sections.summary} />
+        <EducationSection items={sections.education} />
         <ItemSection title="工作经历" items={sections.work} type="work" bordered />
         <ItemSection title="项目经历" items={sections.projects} type="project" bordered />
         <TextSection title="自我评价" text={sections.evaluation} />
@@ -359,6 +381,7 @@ function Meowth({ resume, target, sections }: TemplateProps) {
       </header>
       <main className="mt-4 space-y-4">
         <TextSection title="个人简介" text={sections.summary} dense />
+        <EducationSection items={sections.education} dense />
         <SkillsSection skills={sections.skills} dense />
         <ItemSection title="工作经历" items={sections.work} type="work" compact />
         <ItemSection title="项目经历" items={sections.projects} type="project" compact />
@@ -460,6 +483,38 @@ function SkillsSection({ skills, dense = false }: { skills: string[]; dense?: bo
       <SectionTitle title="技能特长" dense={dense} />
       <SkillTags skills={skills} />
     </section>
+  );
+}
+
+function EducationSection({ items, dense = false }: { items: ResumeEducation[]; dense?: boolean }) {
+  if (!items.length) return null;
+  return (
+    <section className="break-inside-avoid">
+      <SectionTitle title="教育经历" dense={dense} />
+      <EducationList items={items} />
+    </section>
+  );
+}
+
+function EducationList({ items }: { items: ResumeEducation[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="space-y-3">
+      {items.map((item, index) => {
+        const title = [item.school, item.degree, item.major].filter(Boolean).join(' · ');
+        const date = [item.startDate, item.endDate].filter(Boolean).join(' - ');
+        return (
+          <article key={`${title}-${index}`} className="break-inside-avoid">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <h3 className="text-[15px] font-semibold text-slate-950">{title || '教育经历'}</h3>
+              {date && <span className="text-xs text-[var(--muted)]">{date}</span>}
+            </div>
+            {item.gpa && <p className="mt-1 text-sm text-[var(--accent)]">GPA：{item.gpa}</p>}
+            {item.description && <p className="mt-2 whitespace-pre-wrap text-slate-700">{item.description}</p>}
+          </article>
+        );
+      })}
+    </div>
   );
 }
 

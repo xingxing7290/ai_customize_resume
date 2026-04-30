@@ -10,17 +10,35 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 import { ResumesService } from './resumes.service';
 import { CreateResumeVersionDto, UpdateResumeVersionDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class UpdateContentDto {
+  @IsOptional()
+  @IsString()
   summary?: string;
+
+  @IsOptional()
+  @IsArray()
   skills?: string[];
+
+  @IsOptional()
+  @IsArray()
   workExperiences?: any[];
+
+  @IsOptional()
+  @IsArray()
   projectExperiences?: any[];
+
+  @IsOptional()
+  @IsArray()
   certificates?: string[];
+
+  @IsOptional()
+  @IsString()
   selfEvaluation?: string;
 }
 

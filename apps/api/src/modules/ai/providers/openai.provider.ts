@@ -12,7 +12,7 @@ export class OpenAiProvider implements AiProvider {
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('ai.openaiApiKey');
     if (apiKey) {
-      this.client = new OpenAI({ apiKey });
+      this.client = new OpenAI({ apiKey, timeout: 120000 });
     }
   }
 
@@ -94,6 +94,7 @@ export class OpenAiProvider implements AiProvider {
       return new OpenAI({
         apiKey: params.apiKey,
         baseURL: params.baseUrl || 'https://api.deepseek.com',
+        timeout: 120000,
       });
     }
     return this.client;

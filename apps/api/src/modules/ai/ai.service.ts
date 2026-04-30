@@ -89,6 +89,7 @@ export class AiService {
         userPrompt: buildGenerateResumeUserPrompt(profileData, jobData),
         schema: GenerateResumeSchema,
         temperature: 0.3,
+        maxTokens: 8192,
         apiKey: runtimeConfig?.apiKey,
         baseUrl: runtimeConfig?.baseUrl,
         model: runtimeConfig?.model,

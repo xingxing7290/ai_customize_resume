@@ -1,25 +1,36 @@
 import { z } from 'zod';
 
+const StringArraySchema = z.preprocess((value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((item) => (typeof item === 'string' ? item : JSON.stringify(item)));
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>).map(([key, val]) => `${key}: ${typeof val === 'string' ? val : JSON.stringify(val)}`);
+  }
+  return [String(value)];
+}, z.array(z.string()).default([]));
+
 export const GenerateResumeSchema = z.object({
   summary: z.string().optional(),
-  skills: z.array(z.string()).default([]),
+  skills: StringArraySchema,
   workExperiences: z.array(z.object({
     companyName: z.string(),
     title: z.string(),
     duration: z.string(),
-    highlights: z.array(z.string()).default([]),
+    highlights: StringArraySchema,
   })).default([]),
   projectExperiences: z.array(z.object({
     projectName: z.string(),
     role: z.string().optional(),
     description: z.string().optional(),
-    highlights: z.array(z.string()).default([]),
-    techStack: z.array(z.string()).default([]),
+    highlights: StringArraySchema,
+    techStack: StringArraySchema,
   })).default([]),
-  certificates: z.array(z.string()).default([]),
+  certificates: StringArraySchema,
   selfEvaluation: z.string().optional(),
-  optimizationNotes: z.array(z.string()).default([]),
-  gapAnalysis: z.array(z.string()).default([]),
+  optimizationNotes: StringArraySchema,
+  gapAnalysis: StringArraySchema,
 });
 
 export type GeneratedResume = z.infer<typeof GenerateResumeSchema>;

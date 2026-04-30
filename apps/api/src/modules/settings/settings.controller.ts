@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UpdateAiSettingDto } from './dto/update-ai-setting.dto';
@@ -20,5 +20,11 @@ export class SettingsController {
   @ApiOperation({ summary: 'Update current user AI settings' })
   updateAiSetting(@CurrentUser('id') userId: string, @Body() dto: UpdateAiSettingDto) {
     return this.settingsService.upsertAiSetting(userId, dto);
+  }
+
+  @Post('ai/test')
+  @ApiOperation({ summary: 'Test current user AI settings' })
+  testAiSetting(@CurrentUser('id') userId: string, @Body() dto: UpdateAiSettingDto) {
+    return this.settingsService.testAiSetting(userId, dto);
   }
 }

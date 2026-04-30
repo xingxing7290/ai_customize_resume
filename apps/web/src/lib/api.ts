@@ -163,5 +163,6 @@ export const api = {
   settings: {
     getAi: () => apiFetch<any>('/settings/ai'),
     updateAi: (data: any) => apiFetch<any>('/settings/ai', { method: 'PUT', body: JSON.stringify(data) }),
+    testAi: (data: any) => apiFetch<any>('/settings/ai/test', { method: 'POST', body: JSON.stringify(data) }),
   },
 };

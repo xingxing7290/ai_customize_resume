@@ -21,6 +21,11 @@ const copy = {
     saveFailed: '保存设置失败',
     currentKey: '当前 Key',
     noKey: '未配置',
+    test: '测试 API 连接',
+    testing: '测试中...',
+    testSuccess: 'DeepSeek API 连接成功',
+    testFailed: 'DeepSeek API 连接失败',
+    testHelp: '测试会使用当前输入的 Key；如果留空，则使用已保存的 Key。',
   },
   en: {
     title: 'AI Settings',
@@ -38,6 +43,11 @@ const copy = {
     saveFailed: 'Failed to save settings',
     currentKey: 'Current Key',
     noKey: 'Not configured',
+    test: 'Test API Connection',
+    testing: 'Testing...',
+    testSuccess: 'DeepSeek API connection succeeded',
+    testFailed: 'DeepSeek API connection failed',
+    testHelp: 'The test uses the key currently entered. If blank, it uses the saved key.',
   },
 } as const;
 
@@ -46,6 +56,7 @@ export default function SettingsPage() {
   const t = copy[language];
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [message, setMessage] = useState('');
   const [maskedApiKey, setMaskedApiKey] = useState('');
   const [form, setForm] = useState({
@@ -100,6 +111,27 @@ export default function SettingsPage() {
     setMessage(result.message || t.saveFailed);
   }
 
+  async function handleTest() {
+    setTesting(true);
+    setMessage('');
+    const payload = {
+      provider: form.provider,
+      baseUrl: form.baseUrl,
+      model: form.model,
+      enabled: form.enabled,
+      ...(form.apiKey.trim() ? { apiKey: form.apiKey.trim() } : {}),
+    };
+    const result = await api.settings.testAi(payload);
+    setTesting(false);
+
+    if (result.data?.ok) {
+      setMessage(`${t.testSuccess} · ${result.data.model} · ${result.data.durationMs}ms`);
+      return;
+    }
+
+    setMessage(result.data?.error ? `${t.testFailed}: ${result.data.error}` : result.message || t.testFailed);
+  }
+
   if (loading) {
     return <div className="py-12 text-center text-slate-500">Loading...</div>;
   }
@@ -135,6 +167,7 @@ export default function SettingsPage() {
             autoComplete="off"
           />
           <p className="mt-2 text-xs text-slate-500">{t.apiKeyHelp}</p>
+          <p className="mt-1 text-xs text-slate-500">{t.testHelp}</p>
         </div>
 
         <div>
@@ -162,7 +195,10 @@ export default function SettingsPage() {
           {t.enabled}
         </label>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <button type="button" disabled={testing || saving} onClick={handleTest} className="btn-secondary disabled:opacity-60">
+            {testing ? t.testing : t.test}
+          </button>
           <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
             {saving ? t.saving : t.save}
           </button>

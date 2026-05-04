@@ -5,12 +5,14 @@ import { extname, join } from 'path';
 import { FileLoggerService } from '../../common/logger/file-logger.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProfileDto, UpdateProfileDto } from './dto';
+import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class ProfilesService {
   constructor(
     private prisma: PrismaService,
     private fileLogger: FileLoggerService,
+    private aiService: AiService,
   ) {}
 
   async create(userId: string, dto: CreateProfileDto) {
@@ -150,5 +152,44 @@ export class ProfilesService {
     });
 
     return updated;
+  }
+
+  async importFromPdf(userId: string, file: any) {
+    if (!file?.buffer) {
+      throw new BadRequestException('PDF file is required');
+    }
+
+    if (file.mimetype !== 'application/pdf') {
+      throw new BadRequestException('Only PDF files are supported');
+    }
+
+    // 动态导入 pdf-parse
+    const pdfParse = (await import('pdf-parse')).default;
+    const pdfData = await pdfParse(file.buffer);
+    const resumeText = pdfData.text;
+
+    if (!resumeText || resumeText.trim().length < 50) {
+      throw new BadRequestException('PDF content is too short or empty');
+    }
+
+    this.fileLogger.operation('profile_pdf_import_started', {
+      userId,
+      textLength: resumeText.length,
+      bytes: file.size,
+    });
+
+    // 使用 AI 解析简历文本
+    const parsedData = await this.aiService.parseResumeFromText(userId, resumeText);
+
+    this.fileLogger.operation('profile_pdf_import_parsed', {
+      userId,
+      parsedData,
+    });
+
+    return {
+      code: 200,
+      message: 'Success',
+      data: parsedData,
+    };
   }
 }

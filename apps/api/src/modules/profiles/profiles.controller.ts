@@ -14,12 +14,16 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto, UpdateProfileDto } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AiService } from '../ai/ai.service';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
 @Controller('profiles')
 export class ProfilesController {
-  constructor(private profilesService: ProfilesService) {}
+  constructor(
+    private profilesService: ProfilesService,
+    private aiService: AiService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new profile' })
@@ -70,5 +74,15 @@ export class ProfilesController {
   @ApiOperation({ summary: 'Set profile as default' })
   setDefault(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.profilesService.setDefault(userId, id);
+  }
+
+  @Post('import-pdf')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @ApiOperation({ summary: 'Import profile from PDF resume' })
+  async importFromPdf(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: any,
+  ) {
+    return this.profilesService.importFromPdf(userId, file);
   }
 }

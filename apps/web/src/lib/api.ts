@@ -170,6 +170,11 @@ export const api = {
       formData.append('file', file);
       return apiUpload<any>(`/profiles/${id}/avatar`, formData);
     },
+    importPdf: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiUpload<any>('/profiles/import-pdf', formData);
+    },
     delete: (id: string) => apiFetch<void>(`/profiles/${id}`, { method: 'DELETE' }),
   },
 

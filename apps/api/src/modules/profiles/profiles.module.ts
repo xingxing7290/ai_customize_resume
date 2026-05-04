@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ProfilesController } from './profiles.controller';
 import { ProfilesService } from './profiles.service';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { AiModule } from '../ai/ai.module';
 import {
   EducationController,
   WorkExperienceController,
@@ -11,7 +12,7 @@ import {
 } from './sub-controllers/experience.controllers';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AiModule],
   controllers: [
     ProfilesController,
     EducationController,

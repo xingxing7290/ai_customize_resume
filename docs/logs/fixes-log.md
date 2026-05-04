@@ -224,3 +224,44 @@ ssh root@113.44.50.108 "cat > /path/to/file" < /local/path/to/file
 
 ### API URL 配置
 部署到服务器时，前端 API URL 必须使用服务器的外网地址，不能使用 localhost。
+
+---
+
+## 问题 10: 添加 PDF 简历导入功能
+
+### 日期: 2026-05-04
+
+### 功能描述
+在新建档案页面添加 PDF 简历导入功能，用户可以上传 PDF 简历文件，系统自动解析并填充表单字段。
+
+### 实现方案
+
+#### 后端实现
+1. 创建 PDF 解析 prompt (`apps/api/src/modules/ai/prompts/parse-resume.prompt.ts`)
+2. 创建解析简历 schema (`apps/api/src/modules/ai/schemas/parse-resume.schema.ts`)
+3. 在 AiService 添加 `parseResumeFromText` 方法
+4. 在 ProfilesService 添加 `importFromPdf` 方法
+5. 在 ProfilesController 添加 `/profiles/import-pdf` 端点
+6. 安装 `pdf-parse` 依赖用于提取 PDF 文本
+7. 添加 pdf-parse 类型声明 (`apps/api/src/types/pdf-parse.d.ts`)
+
+#### 前端实现
+1. 在 profiles 页面添加 PDF 导入按钮
+2. 更新 api.ts 添加 `importPdf` 方法
+3. 添加导入状态提示和成功消息
+
+### 修改文件
+- `apps/api/src/modules/ai/prompts/parse-resume.prompt.ts` (新建)
+- `apps/api/src/modules/ai/prompts/index.ts`
+- `apps/api/src/modules/ai/schemas/parse-resume.schema.ts` (新建)
+- `apps/api/src/modules/ai/schemas/index.ts`
+- `apps/api/src/modules/ai/ai.service.ts`
+- `apps/api/src/modules/profiles/profiles.controller.ts`
+- `apps/api/src/modules/profiles/profiles.service.ts`
+- `apps/api/src/modules/profiles/profiles.module.ts`
+- `apps/api/src/types/pdf-parse.d.ts` (新建)
+- `apps/web/src/app/(dashboard)/profiles/page.tsx`
+- `apps/web/src/lib/api.ts`
+
+### 状态
+⏳ 代码已完成，等待服务器部署

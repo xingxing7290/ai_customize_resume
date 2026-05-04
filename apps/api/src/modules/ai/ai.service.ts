@@ -6,6 +6,7 @@ import {
   ParseJobSchema,
   GenerateResumeSchema,
   ValidateResumeSchema,
+  ParseResumeSchema,
 } from './schemas';
 import {
   PARSE_JOB_SYSTEM_PROMPT,
@@ -14,6 +15,8 @@ import {
   buildGenerateResumeUserPrompt,
   VALIDATE_RESUME_SYSTEM_PROMPT,
   buildValidateResumeUserPrompt,
+  PARSE_RESUME_SYSTEM_PROMPT,
+  buildParseResumeUserPrompt,
 } from './prompts';
 import { checkConsistency, extractProfileForCheck } from './utils';
 
@@ -247,6 +250,38 @@ export class AiService {
 
       await this.updateTaskLogSuccess(taskLog.id, { data: finalResult, tokenUsed: aiResult.tokenUsed, durationMs: aiResult.durationMs });
       return finalResult;
+    } catch (error) {
+      await this.updateTaskLogFailed(taskLog.id, error);
+      throw error;
+    }
+  }
+
+  async parseResumeFromText(
+    userId: string,
+    resumeText: string,
+    runtimeConfig?: { apiKey?: string; baseUrl?: string; model?: string },
+  ) {
+    const taskLog = await this.createTaskLog(
+      userId,
+      'PARSE_RESUME',
+      'temp',
+      'ResumeImport',
+      { textLength: resumeText.length },
+    );
+
+    try {
+      const result = await this.openAiProvider.generateStructuredJson({
+        systemPrompt: PARSE_RESUME_SYSTEM_PROMPT,
+        userPrompt: buildParseResumeUserPrompt(resumeText),
+        schema: ParseResumeSchema,
+        temperature: 0.2,
+        apiKey: runtimeConfig?.apiKey,
+        baseUrl: runtimeConfig?.baseUrl,
+        model: runtimeConfig?.model,
+      });
+
+      await this.updateTaskLogSuccess(taskLog.id, result);
+      return result.data;
     } catch (error) {
       await this.updateTaskLogFailed(taskLog.id, error);
       throw error;

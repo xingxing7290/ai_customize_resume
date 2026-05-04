@@ -25,6 +25,11 @@ const copy = {
     newProfile: '+ 新建档案',
     editProfile: '编辑档案',
     createProfile: '新建档案',
+    importPdf: 'PDF导入',
+    importPdfHint: '上传PDF简历自动识别填写',
+    importing: '正在解析...',
+    importSuccess: 'PDF解析成功，已自动填写信息',
+    importFailed: 'PDF解析失败',
     name: '姓名',
     email: '邮箱',
     phone: '电话',
@@ -34,7 +39,7 @@ const copy = {
     save: '保存',
     create: '创建',
     emptyTitle: '暂无档案',
-    emptyHint: '点击“新建档案”创建你的第一份主档案。',
+    emptyHint: '点击”新建档案”创建你的第一份主档案。',
     default: '默认',
     education: '教育',
     work: '工作',
@@ -57,6 +62,11 @@ const copy = {
     newProfile: '+ New Profile',
     editProfile: 'Edit Profile',
     createProfile: 'New Profile',
+    importPdf: 'Import PDF',
+    importPdfHint: 'Upload PDF resume to auto-fill',
+    importing: 'Parsing...',
+    importSuccess: 'PDF parsed, fields auto-filled',
+    importFailed: 'PDF parsing failed',
     name: 'Name',
     email: 'Email',
     phone: 'Phone',
@@ -93,6 +103,7 @@ export default function ProfilesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState('');
 
@@ -149,6 +160,33 @@ export default function ProfilesPage() {
     await loadProfiles();
   };
 
+  const handlePdfImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setMessage('');
+    setImporting(true);
+    setShowForm(true);
+    setEditingId(null);
+
+    const result = await api.profiles.importPdf(file);
+    setImporting(false);
+
+    if (result.data) {
+      setForm({
+        name: result.data.name || '',
+        email: result.data.email || '',
+        phone: result.data.phone || '',
+        location: result.data.location || '',
+        summary: result.data.summary || '',
+      });
+      setMessage(t.importSuccess);
+    } else {
+      setMessage(`${t.importFailed}: ${result.message || 'Unknown error'}`);
+    }
+  };
+
   const handleAvatarUpload = async (profileId: string, event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -174,9 +212,21 @@ export default function ProfilesPage() {
           <h1 className="text-2xl font-bold text-slate-800">{t.title}</h1>
           <p className="mt-1 text-slate-500">{t.subtitle}</p>
         </div>
-        <button type="button" onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }} className="btn-primary">
-          {t.newProfile}
-        </button>
+        <div className="flex gap-3">
+          <label className="btn-secondary inline-flex cursor-pointer items-center justify-center">
+            {importing ? t.importing : t.importPdf}
+            <input
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              disabled={importing}
+              onChange={handlePdfImport}
+            />
+          </label>
+          <button type="button" onClick={() => { setShowForm(true); setEditingId(null); setForm(emptyForm); }} className="btn-primary">
+            {t.newProfile}
+          </button>
+        </div>
       </div>
 
       {message && <div className="card px-4 py-3 text-sm text-red-600">{message}</div>}

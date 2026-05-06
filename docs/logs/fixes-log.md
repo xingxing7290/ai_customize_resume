@@ -265,3 +265,44 @@ ssh root@113.44.50.108 "cat > /path/to/file" < /local/path/to/file
 
 ### 状态
 ⏳ 代码已完成，等待服务器部署
+
+---
+
+## 问题 11: 完善 PDF 简历导入落库流程
+
+### 日期: 2026-05-06
+
+### 问题描述
+上一次提交已添加 PDF 简历导入入口，但导入结果只返回给前端并填充基础表单，教育经历、工作经历、项目经历、技能和证书没有真正保存为档案关联数据；同时后端缺少稳定的 `pdf-parse` 运行依赖和无 AI 配置时的降级处理。
+
+### 问题原因
+1. `ProfilesService.importFromPdf` 只返回 AI 解析结果，没有创建 `ResumeProfile` 和关联记录。
+2. 前端导入成功后仍停留在手动保存基础资料的流程。
+3. `pdf-parse` 未固定到兼容当前 Node/Nest 构建方式的版本。
+4. 用户未配置 AI Key 时，PDF 导入会直接失败。
+
+### 解决方案
+1. 后端导入 PDF 后直接创建档案，并批量写入教育、工作、项目、技能、证书记录。
+2. 导入时读取用户 AI 设置；AI 不可用时使用本地兜底解析姓名、邮箱、电话、摘要和常见技术栈。
+3. 将 `pdf-parse` 固定为 `1.1.1`，改为静态导入，避免动态 import 触发包内测试入口。
+4. 前端导入成功后刷新档案列表，并显示导入的关联记录数量。
+
+### 修改的文件
+- `apps/api/package.json`
+- `pnpm-lock.yaml`
+- `package-lock.json`
+- `apps/api/src/modules/ai/ai.service.ts`
+- `apps/api/src/modules/profiles/profiles.controller.ts`
+- `apps/api/src/modules/profiles/profiles.module.ts`
+- `apps/api/src/modules/profiles/profiles.service.ts`
+- `apps/web/src/app/(dashboard)/profiles/page.tsx`
+
+### 测试结果
+- 本地 `apps/api` 执行 `npm run build` 通过。
+- 本地 `apps/api` 执行 `npm test -- --runInBand` 通过。
+- 本地 `apps/web` 执行 TypeScript 检查通过。
+- 本地针对 `profiles/page.tsx` 执行 ESLint 无错误，仅保留项目已有的 `<img>` 警告。
+- 服务器 `apps/api` 执行 `pnpm build` 通过。
+- 服务器 `apps/web` 执行 `pnpm build` 通过。
+- 已重启服务器 API `http://113.44.50.108:3001` 和 Web `http://113.44.50.108:3000`。
+- 访问 `http://113.44.50.108:3000/profiles` 返回 200，访问 `http://113.44.50.108:3001/api/docs` 返回 200，受保护的 `/profiles` API 未登录返回 401，符合预期。

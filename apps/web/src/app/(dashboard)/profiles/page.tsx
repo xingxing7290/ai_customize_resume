@@ -14,6 +14,11 @@ interface Profile {
   summary?: string;
   avatarUrl?: string;
   isDefault: boolean;
+  educationRecords?: unknown[];
+  workExperiences?: unknown[];
+  projectExperiences?: unknown[];
+  skillRecords?: unknown[];
+  certificateRecords?: unknown[];
 }
 
 const emptyForm = { name: '', email: '', phone: '', location: '', summary: '' };
@@ -65,7 +70,7 @@ const copy = {
     importPdf: 'Import PDF',
     importPdfHint: 'Upload PDF resume to auto-fill',
     importing: 'Parsing...',
-    importSuccess: 'PDF parsed, fields auto-filled',
+    importSuccess: 'PDF imported and profile created',
     importFailed: 'PDF parsing failed',
     name: 'Name',
     email: 'Email',
@@ -109,12 +114,12 @@ export default function ProfilesPage() {
 
   useEffect(() => { loadProfiles(); }, []);
 
-  const loadProfiles = async () => {
+  async function loadProfiles() {
     setLoading(true);
     const result = await api.profiles.list();
     if (result.data) setProfiles(result.data);
     setLoading(false);
-  };
+  }
 
   const resetForm = () => {
     setShowForm(false);
@@ -167,21 +172,16 @@ export default function ProfilesPage() {
 
     setMessage('');
     setImporting(true);
-    setShowForm(true);
+    setShowForm(false);
     setEditingId(null);
 
     const result = await api.profiles.importPdf(file);
     setImporting(false);
 
     if (result.data) {
-      setForm({
-        name: result.data.name || '',
-        email: result.data.email || '',
-        phone: result.data.phone || '',
-        location: result.data.location || '',
-        summary: result.data.summary || '',
-      });
-      setMessage(t.importSuccess);
+      setForm(emptyForm);
+      setMessage(buildImportSuccessMessage(t.importSuccess, result.data));
+      await loadProfiles();
     } else {
       setMessage(`${t.importFailed}: ${result.message || 'Unknown error'}`);
     }
@@ -343,6 +343,18 @@ function ProfileAvatar({ profile }: { profile: Profile }) {
       <span className="font-semibold text-blue-700">{profile.name.charAt(0)}</span>
     </div>
   );
+}
+
+function buildImportSuccessMessage(prefix: string, profile: Profile) {
+  const counts = [
+    profile.educationRecords?.length ? `Education ${profile.educationRecords.length}` : '',
+    profile.workExperiences?.length ? `Work ${profile.workExperiences.length}` : '',
+    profile.projectExperiences?.length ? `Projects ${profile.projectExperiences.length}` : '',
+    profile.skillRecords?.length ? `Skills ${profile.skillRecords.length}` : '',
+    profile.certificateRecords?.length ? `Certificates ${profile.certificateRecords.length}` : '',
+  ].filter(Boolean);
+
+  return counts.length ? `${prefix}: ${counts.join(', ')}` : prefix;
 }
 
 function Field({ label, value, onChange, required, type = 'text' }: {

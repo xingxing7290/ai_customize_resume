@@ -14,16 +14,12 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto, UpdateProfileDto } from './dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { AiService } from '../ai/ai.service';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
 @Controller('profiles')
 export class ProfilesController {
-  constructor(
-    private profilesService: ProfilesService,
-    private aiService: AiService,
-  ) {}
+  constructor(private profilesService: ProfilesService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new profile' })

@@ -3,6 +3,7 @@ import { ProfilesController } from './profiles.controller';
 import { ProfilesService } from './profiles.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { AiModule } from '../ai/ai.module';
+import { SettingsModule } from '../settings/settings.module';
 import {
   EducationController,
   WorkExperienceController,
@@ -12,7 +13,7 @@ import {
 } from './sub-controllers/experience.controllers';
 
 @Module({
-  imports: [PrismaModule, AiModule],
+  imports: [PrismaModule, AiModule, SettingsModule],
   controllers: [
     ProfilesController,
     EducationController,

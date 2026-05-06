@@ -256,6 +256,55 @@ export class AiService {
     }
   }
 
+  private buildFallbackResumeParse(resumeText: string) {
+    const lines = resumeText
+      .split(/\r?\n/)
+      .map((line) => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+    const compactText = lines.join('\n');
+    const email = this.matchFirst(compactText, [/([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i]);
+    const phone = this.matchFirst(compactText, [
+      /((?:\+?86[-\s]?)?1[3-9]\d[-\s]?\d{4}[-\s]?\d{4})/,
+      /(\+?\d[\d\s().-]{7,}\d)/,
+    ]);
+    const name = lines.find((line) => {
+      if (line.length > 40) return false;
+      if (email && line.includes(email)) return false;
+      if (phone && line.includes(phone)) return false;
+      return !/(resume|curriculum vitae|简历|邮箱|电话|手机|email|phone)/i.test(line);
+    });
+    const techKeywords = [
+      'JavaScript', 'TypeScript', 'React', 'Next.js', 'Vue', 'Node.js', 'NestJS',
+      'Java', 'Spring', 'Python', 'Go', 'C++', 'C#', 'MySQL', 'PostgreSQL',
+      'Redis', 'Docker', 'Kubernetes', 'AWS', 'Linux', 'Git',
+    ];
+    const skillRecords = techKeywords
+      .filter((keyword) => compactText.toLowerCase().includes(keyword.toLowerCase()))
+      .map((name) => ({ name, category: 'Technology' }));
+
+    return {
+      name,
+      email,
+      phone,
+      location: undefined,
+      summary: this.extractFallbackSummary(lines),
+      educationRecords: [],
+      workExperiences: [],
+      projectExperiences: [],
+      skillRecords,
+      certificateRecords: [],
+    };
+  }
+
+  private extractFallbackSummary(lines: string[]) {
+    const summaryStart = lines.findIndex((line) => /(summary|profile|个人简介|自我评价|职业概况)/i.test(line));
+    if (summaryStart < 0) return undefined;
+    return lines
+      .slice(summaryStart + 1, summaryStart + 4)
+      .filter((line) => line.length > 10 && line.length < 300)
+      .join('\n') || undefined;
+  }
+
   async parseResumeFromText(
     userId: string,
     resumeText: string,
@@ -283,8 +332,16 @@ export class AiService {
       await this.updateTaskLogSuccess(taskLog.id, result);
       return result.data;
     } catch (error) {
-      await this.updateTaskLogFailed(taskLog.id, error);
-      throw error;
+      const fallback = this.buildFallbackResumeParse(resumeText);
+      await this.updateTaskLogSuccess(taskLog.id, {
+        data: {
+          ...fallback,
+          fallbackReason: error.message || String(error),
+        },
+        tokenUsed: 0,
+        durationMs: 0,
+      });
+      return fallback;
     }
   }
 

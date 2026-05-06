@@ -562,6 +562,7 @@ export class AiService {
       ],
     );
     return this.splitResumeBlocks(section)
+      .filter((block) => !this.isProjectLikeBlock(block))
       .map((block) => {
         const lines = this.resumeLines(block);
         const header =
@@ -619,7 +620,27 @@ export class AiService {
         'Work Experience',
       ],
     );
-    return this.splitResumeBlocks(section)
+    const workSection = this.extractResumeSection(
+      text,
+      ['工作经历', '实习经历', 'Work Experience', 'Experience'],
+      [
+        '专业技能',
+        '技能清单',
+        'Skills',
+        '证书',
+        'Certificates',
+        '教育经历',
+        'Education',
+      ],
+    );
+    const blocks = [
+      ...this.splitResumeBlocks(section),
+      ...this.splitResumeBlocks(workSection).filter((block) =>
+        this.isProjectLikeBlock(block),
+      ),
+    ];
+
+    return blocks
       .map((block) => {
         const lines = this.resumeLines(block);
         const name = (
@@ -631,13 +652,24 @@ export class AiService {
         ).slice(0, 80);
         const parts = this.pipeParts(name);
         const headerParts = this.datedHeaderParts(parts);
+        const titleRole = this.splitProjectTitleRole(
+          headerParts.fields.join(' ') || name,
+        );
         return {
-          name: headerParts.fields[0] || name,
+          name: titleRole.name || headerParts.fields[0] || name,
           role:
+            titleRole.role ||
             headerParts.fields[1] ||
             lines.find((line) =>
               /(角色|职责|负责|工程师|开发|负责人|Role)/i.test(line),
             ),
+          startDate:
+            this.matchFirst(block, [
+              /((?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?)/,
+            ]) || undefined,
+          endDate: this.matchFirst(block, [
+            /(?:-|至|到|~|—)\s*((?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?|至今|Present)/i,
+          ]),
           description: lines.slice(0, 4).join('\n'),
           highlights: lines.slice(1, 8).join('\n'),
           techStack: this.extractFallbackSkills(block)
@@ -784,17 +816,32 @@ export class AiService {
     const lines = this.resumeLines(section);
     const dateHeaderIndexes = lines
       .map((line, index) => ({ line, index }))
-      .filter(({ line }) =>
-        /(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?\s*(?:-|至|到|~|—)\s*(?:(?:19|20)\d{2}|至今|Present)/i.test(
-          line,
-        ),
-      )
+      .filter(({ line }) => this.isDateRangeLine(line))
       .map(({ index }) => index);
 
     if (dateHeaderIndexes.length > 1) {
       return dateHeaderIndexes.map((start, position) => {
         const end = dateHeaderIndexes[position + 1] ?? lines.length;
-        return lines.slice(start, end).join('\n').trim();
+        const previous = lines[start - 1];
+        const next = lines[start + 1];
+        const nextLooksLikeTitle =
+          next &&
+          !this.isDateRangeLine(next) &&
+          !this.isResumeHeading(next) &&
+          next.length <= 120 &&
+          this.isProjectLikeBlock(next) &&
+          !/^(负责|实现|支持|开发|参与|主要|搭建|完成设备|完成.*功能)/.test(
+            next,
+          );
+        const realStart =
+          previous &&
+          !this.isDateRangeLine(previous) &&
+          !this.isResumeHeading(previous) &&
+          previous.length <= 120 &&
+          !nextLooksLikeTitle
+            ? start - 1
+            : start;
+        return lines.slice(realStart, end).join('\n').trim();
       });
     }
 
@@ -815,15 +862,61 @@ export class AiService {
   }
 
   private datedHeaderParts(parts: string[]) {
-    const hasLeadingDate =
-      parts.length > 1 &&
-      /^(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?\s*(?:-|至|到|~|—)\s*(?:(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?|至今|Present)$/i.test(
-        parts[0],
-      );
+    const hasLeadingDate = parts.length > 1 && this.isDateRangeLine(parts[0]);
 
     return {
       dateRange: hasLeadingDate ? parts[0] : undefined,
       fields: hasLeadingDate ? parts.slice(1) : parts,
+    };
+  }
+
+  private isDateRangeLine(line?: string) {
+    return Boolean(
+      line &&
+      /^(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?\s*(?:-|至|到|~|—)\s*(?:(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?|至今|Present)$/i.test(
+        line.trim(),
+      ),
+    );
+  }
+
+  private isResumeHeading(line: string) {
+    return /^(个人信息|基本信息|联系方式|教育经历|教育背景|工作经历|实习经历|项目经历|项目经验|专业技能|技能清单|技能特长|证书|资格证书|获奖经历|自我评价|个人简介|职业概况|Work Experience|Project Experience|Summary|Education|Skills|Certificates)$/i.test(
+      line.trim(),
+    );
+  }
+
+  private isProjectLikeBlock(block: string) {
+    const lines = this.resumeLines(block);
+    const header = lines.find((line) => !this.isDateRangeLine(line)) || '';
+    const text = `${header}\n${block}`;
+    const projectLike =
+      /(项目|平台|系统|APP|App|小程序|设备|网关|上位机|工具软件|知识库|说明书|通信|控制|开发与交付|Project|Platform|System)/i.test(
+        text,
+      );
+    const companyLike =
+      /(公司|科技|集团|有限|股份|工作室|中心|Company|Inc\.?|Ltd\.?|LLC|Co\.)/i.test(
+        header,
+      );
+    return projectLike && !companyLike;
+  }
+
+  private splitProjectTitleRole(text?: string) {
+    const source = (text || '').replace(/\s+/g, ' ').trim();
+    if (!source) return { name: undefined, role: undefined };
+    const cleaned = source.replace(
+      /^(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?\s*(?:-|至|到|~|—)\s*(?:(?:19|20)\d{2}(?:[./](?:0?[1-9]|1[0-2]))?|至今|Present)\s*/,
+      '',
+    );
+    const rolePattern =
+      /(程序开发工程师|平台搭建工程师|嵌入式软件工程师|软件开发与优化工程师|软件工程师|开发工程师|软件开发工程师|项目开发|项目负责人|技术负责人|负责人|工程师|Developer|Engineer|Lead)$/i;
+    const match = cleaned.match(rolePattern);
+    if (!match || match.index === undefined || match.index <= 0) {
+      return { name: cleaned || undefined, role: undefined };
+    }
+
+    return {
+      name: cleaned.slice(0, match.index).trim() || cleaned,
+      role: match[0].trim(),
     };
   }
 
@@ -857,7 +950,9 @@ export class AiService {
         'Resume AI parse timed out',
       );
 
-      const data = this.mergeParsedResume(result.data, fallback);
+      const data = this.rebucketParsedExperiences(
+        this.mergeParsedResume(result.data, fallback),
+      );
       await this.updateTaskLogSuccess(taskLog.id, {
         data: this.isSparseParsedResume(result.data)
           ? {
@@ -878,7 +973,7 @@ export class AiService {
         tokenUsed: 0,
         durationMs: 0,
       });
-      return fallback;
+      return this.rebucketParsedExperiences(fallback);
     }
   }
 
@@ -905,6 +1000,83 @@ export class AiService {
         ? primary.certificateRecords
         : fallback.certificateRecords,
     };
+  }
+
+  private rebucketParsedExperiences(data: any) {
+    const workExperiences = [];
+    const projectExperiences = [...(data?.projectExperiences || [])].map(
+      (project) => this.normalizeParsedProject(project),
+    );
+
+    for (const work of data?.workExperiences || []) {
+      if (this.shouldMoveWorkToProject(work)) {
+        projectExperiences.push(this.workToProjectExperience(work));
+      } else {
+        workExperiences.push(work);
+      }
+    }
+
+    return {
+      ...data,
+      workExperiences,
+      projectExperiences: this.dedupeProjects(projectExperiences),
+    };
+  }
+
+  private shouldMoveWorkToProject(work: any) {
+    const company = String(work?.company || '').trim();
+    const title = String(work?.title || '').trim();
+    const description = String(work?.description || '').trim();
+    const companyIsDate = this.isDateRangeLine(company);
+    const companyLike =
+      /(公司|科技|集团|有限|股份|工作室|中心|Company|Inc\.?|Ltd\.?|LLC|Co\.)/i.test(
+        company,
+      );
+    const projectLike =
+      /(项目|平台|系统|APP|App|小程序|设备|网关|上位机|工具软件|知识库|说明书|通信|控制|开发与交付|Project|Platform|System)/i.test(
+        `${company} ${title} ${description}`,
+      );
+    return projectLike && (companyIsDate || !companyLike);
+  }
+
+  private workToProjectExperience(work: any) {
+    const source = [work?.title, work?.company, work?.description]
+      .map((value) => String(value || '').trim())
+      .find((value) => value && !this.isDateRangeLine(value));
+    const titleRole = this.splitProjectTitleRole(source);
+    return this.normalizeParsedProject({
+      name: titleRole.name || source || work?.title || work?.company,
+      role: titleRole.role || work?.title,
+      startDate: work?.startDate,
+      endDate: work?.endDate,
+      description: work?.description,
+      highlights: work?.highlights,
+      techStack: work?.techStack,
+    });
+  }
+
+  private normalizeParsedProject(project: any) {
+    const name = String(project?.name || '').trim();
+    const role = String(project?.role || '').trim();
+    const preferred = this.isDateRangeLine(name) && role ? role : name;
+    const titleRole = this.splitProjectTitleRole(preferred || role);
+    return {
+      ...project,
+      name: titleRole.name || preferred || role,
+      role: titleRole.role || (preferred === role ? project?.role : role),
+    };
+  }
+
+  private dedupeProjects(projects: any[]) {
+    const seen = new Set<string>();
+    return projects.filter((project) => {
+      const name = String(project?.name || '').trim();
+      if (!name) return false;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   private isSparseParsedResume(data: any) {

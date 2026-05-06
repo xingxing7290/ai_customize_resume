@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useLanguage } from '@/lib/language';
 import { api } from '@/lib/api';
@@ -13,7 +13,8 @@ const copy = {
     title: '登录',
     subtitle: '进入 AI 岗位定制简历平台',
     introTitle: '让简历围绕岗位说话',
-    introText: '维护主档案、解析岗位要求，再用 AI 生成更匹配招聘筛选逻辑的简历版本。',
+    introText:
+      '维护主档案、解析岗位要求，再用 AI 生成更匹配招聘筛选逻辑的简历版本。',
     points: ['岗位 JD 结构化解析', '项目与工作经历适配', '公开链接与 PDF 输出'],
     email: '邮箱',
     password: '密码',
@@ -28,8 +29,13 @@ const copy = {
     title: 'Sign In',
     subtitle: 'Access the AI resume customization platform',
     introTitle: 'Make every resume role-specific',
-    introText: 'Maintain one profile, parse job requirements, and generate targeted resume versions with AI.',
-    points: ['Structured JD parsing', 'Role-aware experience rewriting', 'Public links and PDF export'],
+    introText:
+      'Maintain one profile, parse job requirements, and generate targeted resume versions with AI.',
+    points: [
+      'Structured JD parsing',
+      'Role-aware experience rewriting',
+      'Public links and PDF export',
+    ],
     email: 'Email',
     password: 'Password',
     submit: 'Sign In',
@@ -42,6 +48,7 @@ const copy = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { language, setLanguage } = useLanguage();
   const t = copy[language];
   const [email, setEmail] = useState('test@test.com');
@@ -58,7 +65,8 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result.data?.accessToken) {
-      router.push('/profiles');
+      const next = searchParams.get('next');
+      router.push(next?.startsWith('/') ? next : '/profiles');
       return;
     }
 
@@ -76,12 +84,21 @@ export default function LoginPage() {
           <div className="brand-mark h-11 w-11 text-sm font-bold">AI</div>
           <span className="text-xl font-bold text-slate-900">{t.brand}</span>
         </div>
-        <h1 className="max-w-xl text-5xl font-semibold leading-tight tracking-normal text-slate-950">{t.introTitle}</h1>
-        <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">{t.introText}</p>
+        <h1 className="max-w-xl text-5xl font-semibold leading-tight tracking-normal text-slate-950">
+          {t.introTitle}
+        </h1>
+        <p className="mt-5 max-w-xl text-lg leading-8 text-slate-600">
+          {t.introText}
+        </p>
         <div className="mt-10 grid max-w-xl gap-3">
           {t.points.map((point, index) => (
-            <div key={point} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white/70 px-4 py-3 shadow-sm">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-sm font-bold text-blue-700">{index + 1}</span>
+            <div
+              key={point}
+              className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white/70 px-4 py-3 shadow-sm"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-sm font-bold text-blue-700">
+                {index + 1}
+              </span>
               <span className="font-medium text-slate-700">{point}</span>
             </div>
           ))}
@@ -99,7 +116,9 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">{t.email}</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              {t.email}
+            </label>
             <input
               type="email"
               required
@@ -110,7 +129,9 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">{t.password}</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">
+              {t.password}
+            </label>
             <input
               type="password"
               required
@@ -121,17 +142,26 @@ export default function LoginPage() {
           </div>
 
           {message && (
-            <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{message}</div>
+            <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
+              {message}
+            </div>
           )}
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-3 disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full py-3 disabled:opacity-60"
+          >
             {loading ? t.submitting : t.submit}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-500">
           {t.noAccount}{' '}
-          <Link href="/register" className="font-medium text-blue-700 hover:text-blue-800">
+          <Link
+            href="/register"
+            className="font-medium text-blue-700 hover:text-blue-800"
+          >
             {t.register}
           </Link>
         </p>

@@ -17,6 +17,7 @@ const copy = {
       { href: '/settings', label: '设置', short: '设置' },
     ],
     logout: '退出登录',
+    checkingSession: '正在验证登录状态...',
   },
   en: {
     brand: 'AI Resume Studio',
@@ -27,29 +28,56 @@ const copy = {
       { href: '/settings', label: 'Settings', short: 'Settings' },
     ],
     logout: 'Sign Out',
+    checkingSession: 'Checking session...',
   },
 };
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
   const t = copy[language];
   const [mounted, setMounted] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    let cancelled = false;
+
+    api.auth.me().then((result) => {
+      if (cancelled) return;
+      if (result.data) {
+        setCheckingAuth(false);
+        return;
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+      }
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, router]);
 
   const handleLogout = async () => {
     await api.auth.logout();
     router.push('/login');
   };
 
-  if (!mounted) {
+  if (!mounted || checkingAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+          <p className="text-sm text-slate-500">{t.checkingSession}</p>
+        </div>
       </div>
     );
   }
@@ -65,19 +93,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="brand-mark h-8 w-8">
                     <span className="text-sm font-bold text-white">AI</span>
                   </div>
-                  <span className="text-lg font-semibold text-slate-800">{t.brand}</span>
+                  <span className="text-lg font-semibold text-slate-800">
+                    {t.brand}
+                  </span>
                 </Link>
               </div>
               <div className="hidden sm:ml-8 sm:flex sm:space-x-1">
                 {t.nav.map((item) => (
-                  <NavLink key={item.href} href={item.href} active={pathname.startsWith(item.href)}>
+                  <NavLink
+                    key={item.href}
+                    href={item.href}
+                    active={pathname.startsWith(item.href)}
+                  >
                     {item.label}
                   </NavLink>
                 ))}
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <LanguageSelector language={language} onChange={setLanguage} compact />
+              <LanguageSelector
+                language={language}
+                onChange={setLanguage}
+                compact
+              />
               <button
                 type="button"
                 onClick={handleLogout}
@@ -89,7 +127,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="grid grid-cols-4 gap-2 pb-3 sm:hidden">
             {t.nav.map((item) => (
-              <NavLink key={item.href} href={item.href} active={pathname.startsWith(item.href)} mobile>
+              <NavLink
+                key={item.href}
+                href={item.href}
+                active={pathname.startsWith(item.href)}
+                mobile
+              >
                 {item.short}
               </NavLink>
             ))}
@@ -104,7 +147,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 }
 
-function NavLink({ href, active, mobile = false, children }: { href: string; active: boolean; mobile?: boolean; children: React.ReactNode }) {
+function NavLink({
+  href,
+  active,
+  mobile = false,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  mobile?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}

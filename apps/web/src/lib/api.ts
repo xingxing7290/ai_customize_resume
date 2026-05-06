@@ -1,9 +1,25 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://113.44.50.108:3001';
 
 interface ApiResponse<T> {
   data?: T;
   code?: number;
   message?: string;
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined') return;
+
+  localStorage.removeItem('accessToken');
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+  const target =
+    currentPath && currentPath !== '/login'
+      ? `/login?next=${encodeURIComponent(currentPath)}`
+      : '/login';
+
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.href = target;
+  }
 }
 
 const JSON_ARRAY_FIELDS = new Set([
@@ -49,7 +65,7 @@ function normalizePayload(value: unknown): unknown {
 
 export async function apiFetch<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -79,10 +95,18 @@ export async function apiFetch<T>(
     const payload = await response.json();
 
     if (!response.ok) {
-      return { code: response.status, message: payload.message || 'Request failed' };
+      if (response.status === 401) {
+        redirectToLogin();
+      }
+      return {
+        code: response.status,
+        message: payload.message || 'Request failed',
+      };
     }
 
-    const data = Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+    const data = Object.prototype.hasOwnProperty.call(payload, 'data')
+      ? payload.data
+      : payload;
     return { data: normalizePayload(data) as T };
   } catch {
     return { code: 500, message: 'Network error' };
@@ -95,7 +119,10 @@ export function resolveAssetUrl(value?: string | null) {
   return `${API_BASE_URL}${value.startsWith('/') ? value : `/${value}`}`;
 }
 
-async function apiUpload<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+async function apiUpload<T>(
+  endpoint: string,
+  formData: FormData,
+): Promise<ApiResponse<T>> {
   const headers: HeadersInit = {};
 
   if (typeof window !== 'undefined') {
@@ -115,10 +142,18 @@ async function apiUpload<T>(endpoint: string, formData: FormData): Promise<ApiRe
     const payload = await response.json();
 
     if (!response.ok) {
-      return { code: response.status, message: payload.message || 'Upload failed' };
+      if (response.status === 401) {
+        redirectToLogin();
+      }
+      return {
+        code: response.status,
+        message: payload.message || 'Upload failed',
+      };
     }
 
-    const data = Object.prototype.hasOwnProperty.call(payload, 'data') ? payload.data : payload;
+    const data = Object.prototype.hasOwnProperty.call(payload, 'data')
+      ? payload.data
+      : payload;
     return { data: normalizePayload(data) as T };
   } catch {
     return { code: 500, message: 'Network error' };
@@ -128,7 +163,10 @@ async function apiUpload<T>(endpoint: string, formData: FormData): Promise<ApiRe
 export const api = {
   auth: {
     register: (data: { email: string; password: string; name?: string }) =>
-      apiFetch<{ accessToken: string; user: { id: string; email: string; name: string } }>('/auth/register', {
+      apiFetch<{
+        accessToken: string;
+        user: { id: string; email: string; name: string };
+      }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
       }).then((result) => {
@@ -139,7 +177,10 @@ export const api = {
       }),
 
     login: (data: { email: string; password: string }) =>
-      apiFetch<{ accessToken: string; user: { id: string; email: string; name: string } }>('/auth/login', {
+      apiFetch<{
+        accessToken: string;
+        user: { id: string; email: string; name: string };
+      }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(data),
       }).then((result) => {
@@ -157,14 +198,24 @@ export const api = {
       }),
 
     me: () =>
-      apiFetch<{ id: string; email: string; name: string; avatar?: string }>('/auth/me'),
+      apiFetch<{ id: string; email: string; name: string; avatar?: string }>(
+        '/auth/me',
+      ),
   },
 
   profiles: {
     list: () => apiFetch<any[]>('/profiles'),
     get: (id: string) => apiFetch<any>(`/profiles/${id}`),
-    create: (data: any) => apiFetch<any>('/profiles', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) => apiFetch<any>(`/profiles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    create: (data: any) =>
+      apiFetch<any>('/profiles', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      apiFetch<any>(`/profiles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
     uploadAvatar: (id: string, file: File) => {
       const formData = new FormData();
       formData.append('file', file);
@@ -175,40 +226,78 @@ export const api = {
       formData.append('file', file);
       return apiUpload<any>('/profiles/import-pdf', formData);
     },
-    delete: (id: string) => apiFetch<void>(`/profiles/${id}`, { method: 'DELETE' }),
+    delete: (id: string) =>
+      apiFetch<void>(`/profiles/${id}`, { method: 'DELETE' }),
   },
 
   jobs: {
     list: () => apiFetch<any[]>('/jobs'),
     get: (id: string) => apiFetch<any>(`/jobs/${id}`),
-    create: (data: any) => apiFetch<any>('/jobs', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) => apiFetch<any>(`/jobs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    reparse: (id: string) => apiFetch<any>(`/jobs/${id}/reparse`, { method: 'POST' }),
+    create: (data: any) =>
+      apiFetch<any>('/jobs', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      apiFetch<any>(`/jobs/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    reparse: (id: string) =>
+      apiFetch<any>(`/jobs/${id}/reparse`, { method: 'POST' }),
     delete: (id: string) => apiFetch<void>(`/jobs/${id}`, { method: 'DELETE' }),
   },
 
   resumes: {
-    list: (jobTargetId?: string) => apiFetch<any[]>(jobTargetId ? `/resumes?jobTargetId=${jobTargetId}` : '/resumes'),
+    list: (jobTargetId?: string) =>
+      apiFetch<any[]>(
+        jobTargetId ? `/resumes?jobTargetId=${jobTargetId}` : '/resumes',
+      ),
     get: (id: string) => apiFetch<any>(`/resumes/${id}`),
-    create: (data: any) => apiFetch<any>('/resumes', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: any) => apiFetch<any>(`/resumes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    updateContent: (id: string, data: any) => apiFetch<any>(`/resumes/${id}/content`, { method: 'PUT', body: JSON.stringify(data) }),
-    copy: (id: string, data: any = {}) => apiFetch<any>(`/resumes/${id}/copy`, { method: 'POST', body: JSON.stringify(data) }),
-    regenerate: (id: string) => apiFetch<any>(`/resumes/${id}/regenerate`, { method: 'POST' }),
-    delete: (id: string) => apiFetch<void>(`/resumes/${id}`, { method: 'DELETE' }),
+    create: (data: any) =>
+      apiFetch<any>('/resumes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: any) =>
+      apiFetch<any>(`/resumes/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    updateContent: (id: string, data: any) =>
+      apiFetch<any>(`/resumes/${id}/content`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    copy: (id: string, data: any = {}) =>
+      apiFetch<any>(`/resumes/${id}/copy`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    regenerate: (id: string) =>
+      apiFetch<any>(`/resumes/${id}/regenerate`, { method: 'POST' }),
+    delete: (id: string) =>
+      apiFetch<void>(`/resumes/${id}`, { method: 'DELETE' }),
   },
 
   publish: {
     publish: (versionId: string) =>
-      apiFetch<any>(`/publish/${versionId}`, { method: 'POST', body: JSON.stringify({ isPublic: true }) }),
-    regenerate: (versionId: string) => apiFetch<any>(`/publish/${versionId}/regenerate`, { method: 'POST' }),
+      apiFetch<any>(`/publish/${versionId}`, {
+        method: 'POST',
+        body: JSON.stringify({ isPublic: true }),
+      }),
+    regenerate: (versionId: string) =>
+      apiFetch<any>(`/publish/${versionId}/regenerate`, { method: 'POST' }),
     get: (versionId: string) => apiFetch<any>(`/publish/${versionId}`),
-    unpublish: (versionId: string) => apiFetch<any>(`/publish/${versionId}`, { method: 'DELETE' }),
+    unpublish: (versionId: string) =>
+      apiFetch<any>(`/publish/${versionId}`, { method: 'DELETE' }),
   },
 
   settings: {
     getAi: () => apiFetch<any>('/settings/ai'),
-    updateAi: (data: any) => apiFetch<any>('/settings/ai', { method: 'PUT', body: JSON.stringify(data) }),
-    testAi: (data: any) => apiFetch<any>('/settings/ai/test', { method: 'POST', body: JSON.stringify(data) }),
+    updateAi: (data: any) =>
+      apiFetch<any>('/settings/ai', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    testAi: (data: any) =>
+      apiFetch<any>('/settings/ai/test', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 };

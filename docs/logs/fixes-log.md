@@ -21,8 +21,8 @@
 
 ```css
 font-family:
-  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-  Arial, "Noto Sans SC", sans-serif;
+  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+  Arial, 'Noto Sans SC', sans-serif;
 ```
 
 ### 状态
@@ -402,3 +402,44 @@ ssh root@113.44.50.108 "cat > /path/to/file" < /local/path/to/file
 - 使用服务器真实 PDF 通过 `/profiles/import-pdf` 上传测试，接口约 185ms 返回成功，创建档案及关联记录。
 - 接口返回并校验通过：教育 2 条、工作 2 条、项目 2 条、技能 15 条、证书 1 条；学校、公司、项目名称均与 PDF 内容匹配。
 - 服务器日志确认最终导入请求在 `2026-05-06T12:46:50Z` 完成，`profile_pdf_import_parsed` 和 `profile_pdf_import_created` 均记录教育 2、工作 2、项目 2，HTTP 请求耗时 178ms。
+
+---
+
+## 问题 13: PDF 导入未登录状态返回 401 且日期分隔标题解析错位
+
+### 日期: 2026-05-06
+
+### 问题描述
+
+用户在页面上传 PDF 时，请求 `http://113.44.50.108:3001/profiles/import-pdf` 立即返回 `401 Unauthorized`。同时服务器回归测试发现 `2013-2015 | 学校 | 学位 | 专业` 这类日期开头的 PDF 文本会把日期误识别为学校、公司或项目名称。
+
+### 问题原因
+
+1. 服务器日志显示用户浏览器在上传前访问 `/profiles`、`/jobs`、`/settings/ai` 已连续返回 401，说明页面处于未登录或 token 失效状态。
+2. 前端仪表盘没有在进入页面时主动校验 `/auth/me`，失效登录态下仍可点击 PDF 上传。
+3. 通用 `|` 分隔解析没有识别第一段日期范围，导致日期开头的教育、工作、项目标题字段整体左移。
+
+### 解决方案
+
+1. 前端 API 客户端在任意请求或上传遇到 401 时清理 `accessToken`，并跳转到 `/login?next=当前路径`。
+2. 仪表盘布局加载时先调用 `/auth/me` 验证会话，未登录时直接返回登录页。
+3. 登录页支持 `next` 参数，重新登录后回到原页面。
+4. 后端本地 PDF 兜底解析新增日期开头标题识别，教育、工作、项目经历会跳过第一段日期后再映射学校、公司、项目名称等字段。
+
+### 修改的文件
+
+- `apps/web/src/lib/api.ts`
+- `apps/web/src/app/(dashboard)/layout.tsx`
+- `apps/web/src/app/(auth)/login/page.tsx`
+- `apps/api/src/modules/ai/ai.service.ts`
+
+### 测试结果
+
+- 本地 `apps/api` 执行 `npm run build` 通过。
+- 本地 `apps/api` 执行 `npm test -- --runInBand` 通过。
+- 服务器 `apps/api` 执行 `pnpm build` 通过并已重启。
+- 服务器 `apps/web` 执行 `pnpm build` 通过并已重启。
+- 使用 Puppeteer 访问未登录的 `http://127.0.0.1:3000/profiles`，确认自动跳转到 `http://127.0.0.1:3000/login?next=%2Fprofiles`。
+- 在服务器生成完整测试 PDF `/tmp/full-profile-import-regression.pdf`，内容包含姓名、邮箱、电话、地点、摘要、2 条教育、2 条工作、2 条项目、技能和证书。
+- 未带 token 上传 `/profiles/import-pdf` 返回 401，符合安全预期；带 token 上传同一 PDF 返回 201。
+- 真实上传解析结果校验通过：姓名 `Daniel Zhang`、邮箱 `daniel.zhang@example.com`、教育 2 条、工作 2 条、项目 2 条、技能 19 条、证书 1 条；学校、公司、项目名称均与 PDF 内容匹配。

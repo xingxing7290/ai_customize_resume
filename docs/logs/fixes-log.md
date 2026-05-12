@@ -516,3 +516,34 @@ ssh root@113.44.50.108 "cat > /path/to/file" < /local/path/to/file
 - 在服务器生成分页测试 PDF `/tmp/pdf-import-education-project-regression-v2.pdf`，包含“工作经历”段中的学习经历、公司工作、12 条项目和单独项目经历段。
 - 使用服务器 `/profiles/import-pdf` 真实上传验证通过：教育 1 条、工作 0 条、项目 12 条、技能 16 条、证书 1 条。
 - 校验确认 `华中科技大学` 留在教育经历，没有进入工作经历；项目包含 `4G 设备管理 APP 与嵌入式设备通信项目`、`产品线上说明书平台与 AI 知识库系统`、`工业网关远程维护平台`、`MQTT 物联网数据采集平台项目` 等，未出现页码或日期作为项目名。
+
+---
+
+## 问题 16: 强化 AI 简历经历分类后再导入
+
+### 日期: 2026-05-12
+
+### 问题描述
+
+用户提出 PDF 简历导入可以根据 AI 进行分类后再导入，避免仅按 PDF 小标题或本地规则分类导致经历落错表。
+
+### 解决方案
+
+1. 强化 AI 简历解析 prompt：先进行经历分类，再提取字段，不机械相信 PDF 小标题。
+2. 明确分类规则：学校/学历/专业信息必须进入教育经历；只有真实雇主和任职关系才进入工作经历；项目、平台、系统、APP、设备、网关、上位机、知识库等内容必须进入项目经历。
+3. 要求 AI 不把日期、页码、纯数字或描述句作为公司、学校、项目名称。
+4. 更新结构化 schema 字段说明，让 `company` 明确表示真实雇主，`project.name` 明确表示项目/平台/系统/产品名称。
+5. 保留本地二次分桶作为兜底纠错，防止 AI 少提、错分或返回稀疏结果。
+
+### 修改的文件
+
+- `apps/api/src/modules/ai/prompts/parse-resume.prompt.ts`
+- `apps/api/src/modules/ai/schemas/parse-resume.schema.ts`
+
+### 测试结果
+
+- 本地 `apps/api` 执行 `npm run build` 通过。
+- 本地 `apps/api` 执行 `npm test -- --runInBand` 通过。
+- 服务器 `apps/api` 执行 `pnpm build` 通过并已重启。
+- 复用服务器分页 PDF `/tmp/pdf-import-education-project-regression-v2.pdf` 真实上传验证通过：教育 1 条、工作 0 条、项目 12 条、技能 16 条、证书 1 条。
+- 校验确认学习经历没有进入工作经历，项目名称和角色保持正确拆分。

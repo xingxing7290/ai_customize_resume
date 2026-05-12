@@ -11,8 +11,12 @@ const EducationSchema = z.object({
 });
 
 const WorkExperienceSchema = z.object({
-  company: z.string().describe('公司名称'),
-  title: z.string().describe('职位名称'),
+  company: z
+    .string()
+    .describe(
+      '真实雇主/公司/组织名称，不能填写日期、学校、项目名、平台名或描述句',
+    ),
+  title: z.string().describe('任职职位名称'),
   location: z.string().optional().describe('工作地点'),
   startDate: z.string().optional().describe('开始日期，格式 YYYY-MM 或 YYYY'),
   endDate: z.string().optional().describe('结束日期，格式 YYYY-MM 或 YYYY'),
@@ -23,8 +27,13 @@ const WorkExperienceSchema = z.object({
 });
 
 const ProjectExperienceSchema = z.object({
-  name: z.string().describe('项目名称'),
-  role: z.string().optional().describe('角色'),
+  name: z
+    .string()
+    .describe('项目/平台/系统/产品名称，不能填写日期、页码、纯数字或描述句'),
+  role: z
+    .string()
+    .optional()
+    .describe('项目中的角色，如开发工程师、项目负责人'),
   startDate: z.string().optional().describe('开始日期'),
   endDate: z.string().optional().describe('结束日期'),
   description: z.string().optional().describe('项目描述'),
@@ -35,7 +44,10 @@ const ProjectExperienceSchema = z.object({
 
 const SkillSchema = z.object({
   name: z.string().describe('技能名称'),
-  category: z.string().optional().describe('技能分类，如编程语言、框架、工具等'),
+  category: z
+    .string()
+    .optional()
+    .describe('技能分类，如编程语言、框架、工具等'),
   level: z.string().optional().describe('技能等级，如精通、熟练、了解'),
 });
 
@@ -54,8 +66,14 @@ export const ParseResumeSchema = z.object({
   location: z.string().optional().describe('地点'),
   summary: z.string().optional().describe('个人简介'),
   educationRecords: z.array(EducationSchema).optional().describe('教育经历'),
-  workExperiences: z.array(WorkExperienceSchema).optional().describe('工作经历'),
-  projectExperiences: z.array(ProjectExperienceSchema).optional().describe('项目经历'),
+  workExperiences: z
+    .array(WorkExperienceSchema)
+    .optional()
+    .describe('工作经历'),
+  projectExperiences: z
+    .array(ProjectExperienceSchema)
+    .optional()
+    .describe('项目经历'),
   skillRecords: z.array(SkillSchema).optional().describe('技能'),
   certificateRecords: z.array(CertificateSchema).optional().describe('证书'),
 });

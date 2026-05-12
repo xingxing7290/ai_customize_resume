@@ -423,7 +423,7 @@ export class AiService {
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .replace(
-        /(个人信息|基本信息|联系方式|教育经历|教育背景|工作经历|实习经历|项目经历|项目经验|专业技能|技能清单|技能特长|证书|资格证书|获奖经历|自我评价|个人简介|职业概况|Work Experience|Project Experience|Summary|Education|Skills|Certificates)/gi,
+        /(个人信息|基本信息|联系方式|教育经历|教育背景|学习经历|学习背景|工作经历|实习经历|项目经历|项目经验|专业技能|技能清单|技能特长|证书|资格证书|获奖经历|自我评价|个人简介|职业概况|Work Experience|Project Experience|Summary|Education|Skills|Certificates)/gi,
         '\n$1\n',
       )
       .replace(/[ \t]{2,}/g, ' ')
@@ -473,6 +473,8 @@ export class AiService {
       [
         '教育经历',
         '教育背景',
+        '学习经历',
+        '学习背景',
         '工作经历',
         '项目经历',
         '专业技能',
@@ -497,7 +499,7 @@ export class AiService {
   private extractFallbackEducation(text: string) {
     const section = this.extractResumeSection(
       text,
-      ['教育经历', '教育背景', 'Education'],
+      ['教育经历', '教育背景', '学习经历', '学习背景', 'Education'],
       [
         '工作经历',
         '实习经历',
@@ -506,12 +508,13 @@ export class AiService {
         '专业技能',
         '技能清单',
         '证书',
+        'Certificates',
       ],
     );
     const lines = this.resumeLines(section || text);
     const schools = lines
       .filter((line) => /(大学|学院|学校|University|College)/i.test(line))
-      .slice(0, 4);
+      .slice(0, 8);
     return schools.map((line) => {
       const parts = this.pipeParts(line);
       const headerParts = this.datedHeaderParts(parts);
@@ -558,6 +561,9 @@ export class AiService {
         '证书',
         'Certificates',
         '教育经历',
+        '教育背景',
+        '学习经历',
+        '学习背景',
         'Education',
       ],
     );
@@ -615,6 +621,9 @@ export class AiService {
         '证书',
         'Certificates',
         '教育经历',
+        '教育背景',
+        '学习经历',
+        '学习背景',
         'Education',
         '工作经历',
         'Work Experience',
@@ -630,12 +639,18 @@ export class AiService {
         '证书',
         'Certificates',
         '教育经历',
+        '教育背景',
+        '学习经历',
+        '学习背景',
         'Education',
       ],
     );
     const blocks = [
       ...this.splitResumeBlocks(section),
       ...this.splitResumeBlocks(workSection).filter((block) =>
+        this.isProjectLikeBlock(block),
+      ),
+      ...this.splitResumeBlocks(text).filter((block) =>
         this.isProjectLikeBlock(block),
       ),
     ];
@@ -678,7 +693,7 @@ export class AiService {
         };
       })
       .filter((item) => item.name)
-      .slice(0, 8);
+      .slice(0, 30);
   }
 
   private extractFallbackSkills(text: string) {
@@ -686,7 +701,16 @@ export class AiService {
       this.extractResumeSection(
         text,
         ['专业技能', '技能清单', '技能特长', 'Skills'],
-        ['项目经历', '证书', 'Certificates', '教育经历', '工作经历'],
+        [
+          '项目经历',
+          '证书',
+          'Certificates',
+          '教育经历',
+          '教育背景',
+          '学习经历',
+          '学习背景',
+          '工作经历',
+        ],
       ) || text;
     const techKeywords = [
       'JavaScript',
@@ -880,7 +904,7 @@ export class AiService {
   }
 
   private isResumeHeading(line: string) {
-    return /^(个人信息|基本信息|联系方式|教育经历|教育背景|工作经历|实习经历|项目经历|项目经验|专业技能|技能清单|技能特长|证书|资格证书|获奖经历|自我评价|个人简介|职业概况|Work Experience|Project Experience|Summary|Education|Skills|Certificates)$/i.test(
+    return /^(个人信息|基本信息|联系方式|教育经历|教育背景|学习经历|学习背景|工作经历|实习经历|项目经历|项目经验|专业技能|技能清单|技能特长|证书|资格证书|获奖经历|自我评价|个人简介|职业概况|Work Experience|Project Experience|Summary|Education|Skills|Certificates)$/i.test(
       line.trim(),
     );
   }
@@ -908,7 +932,7 @@ export class AiService {
       '',
     );
     const rolePattern =
-      /(程序开发工程师|平台搭建工程师|嵌入式软件工程师|软件开发与优化工程师|软件工程师|开发工程师|软件开发工程师|项目开发|项目负责人|技术负责人|负责人|工程师|Developer|Engineer|Lead)$/i;
+      /(程序开发工程师|平台搭建工程师|嵌入式软件工程师|嵌入式开发工程师|软件开发与优化工程师|全栈开发工程师|后端开发工程师|软件开发工程师|软件工程师|开发工程师|项目开发|项目负责人|技术负责人|负责人|工程师|Developer|Engineer|Lead)$/i;
     const match = cleaned.match(rolePattern);
     if (!match || match.index === undefined || match.index <= 0) {
       return { name: cleaned || undefined, role: undefined };
@@ -984,40 +1008,80 @@ export class AiService {
       phone: primary?.phone || fallback.phone,
       location: primary?.location || fallback.location,
       summary: primary?.summary || fallback.summary,
-      educationRecords: primary?.educationRecords?.length
-        ? primary.educationRecords
-        : fallback.educationRecords,
-      workExperiences: primary?.workExperiences?.length
-        ? primary.workExperiences
-        : fallback.workExperiences,
-      projectExperiences: primary?.projectExperiences?.length
-        ? primary.projectExperiences
-        : fallback.projectExperiences,
-      skillRecords: primary?.skillRecords?.length
-        ? primary.skillRecords
-        : fallback.skillRecords,
-      certificateRecords: primary?.certificateRecords?.length
-        ? primary.certificateRecords
-        : fallback.certificateRecords,
+      educationRecords: this.mergeRecords(
+        primary?.educationRecords,
+        fallback.educationRecords,
+        (item) =>
+          `${item?.school || ''}|${item?.degree || ''}|${item?.major || ''}`,
+      ),
+      workExperiences: this.mergeRecords(
+        primary?.workExperiences,
+        fallback.workExperiences,
+        (item) =>
+          `${item?.company || ''}|${item?.title || ''}|${item?.startDate || ''}`,
+      ),
+      projectExperiences: this.mergeRecords(
+        primary?.projectExperiences,
+        fallback.projectExperiences,
+        (item) =>
+          `${item?.name || ''}|${item?.role || ''}|${item?.startDate || ''}`,
+      ),
+      skillRecords: this.mergeRecords(
+        primary?.skillRecords,
+        fallback.skillRecords,
+        (item) => item?.name || '',
+      ),
+      certificateRecords: this.mergeRecords(
+        primary?.certificateRecords,
+        fallback.certificateRecords,
+        (item) => item?.name || '',
+      ),
     };
   }
 
+  private mergeRecords(
+    primary: any[] | undefined,
+    fallback: any[] | undefined,
+    keyOf: (item: any) => string,
+  ) {
+    const records = [...(primary || []), ...(fallback || [])];
+    const seen = new Set<string>();
+    return records.filter((item) => {
+      const key = keyOf(item).replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!key) return false;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   private rebucketParsedExperiences(data: any) {
+    const educationRecords = [...(data?.educationRecords || [])];
     const workExperiences = [];
-    const projectExperiences = [...(data?.projectExperiences || [])].map(
-      (project) => this.normalizeParsedProject(project),
-    );
+    const projectExperiences = [];
 
     for (const work of data?.workExperiences || []) {
-      if (this.shouldMoveWorkToProject(work)) {
+      if (this.isEducationLikeRecord(work)) {
+        educationRecords.push(this.workToEducationRecord(work));
+      } else if (this.shouldMoveWorkToProject(work)) {
         projectExperiences.push(this.workToProjectExperience(work));
       } else {
         workExperiences.push(work);
       }
     }
 
+    for (const project of data?.projectExperiences || []) {
+      const normalized = this.normalizeParsedProject(project);
+      if (this.isEducationLikeRecord(normalized)) {
+        educationRecords.push(this.projectToEducationRecord(normalized));
+      } else {
+        projectExperiences.push(normalized);
+      }
+    }
+
     return {
       ...data,
+      educationRecords: this.dedupeEducation(educationRecords),
       workExperiences,
       projectExperiences: this.dedupeProjects(projectExperiences),
     };
@@ -1037,6 +1101,102 @@ export class AiService {
         `${company} ${title} ${description}`,
       );
     return projectLike && (companyIsDate || !companyLike);
+  }
+
+  private isEducationLikeRecord(record: any) {
+    const text = [
+      record?.school,
+      record?.degree,
+      record?.major,
+      record?.company,
+      record?.title,
+      record?.name,
+      record?.role,
+      record?.description,
+    ]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    const educationLike =
+      /(大学|学院|学校|本科|专科|大专|硕士|博士|学士|研究生|专业|学历|University|College|Bachelor|Master|Doctor|Education)/i.test(
+        text,
+      );
+    const projectLike =
+      /(项目|平台|系统|APP|App|小程序|设备|网关|上位机|工具软件|知识库|说明书|通信|控制|Project|Platform|System)/i.test(
+        text,
+      );
+    const companyLike =
+      /(公司|科技|集团|有限|股份|工作室|中心|Company|Inc\.?|Ltd\.?|LLC|Co\.)/i.test(
+        text,
+      );
+    return educationLike && !projectLike && !companyLike;
+  }
+
+  private workToEducationRecord(work: any) {
+    const source = [work?.company, work?.title, work?.description]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return this.normalizeParsedEducation({
+      school: this.extractSchoolName(source) || work?.company,
+      degree: work?.degree || this.extractDegree(source) || work?.title,
+      major: work?.major || this.extractMajor(source),
+      startDate: work?.startDate,
+      endDate: work?.endDate,
+      description: work?.description || source,
+    });
+  }
+
+  private projectToEducationRecord(project: any) {
+    const source = [project?.name, project?.role, project?.description]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return this.normalizeParsedEducation({
+      school: this.extractSchoolName(source) || project?.name,
+      degree: project?.degree || this.extractDegree(source) || project?.role,
+      major: project?.major || this.extractMajor(source),
+      startDate: project?.startDate,
+      endDate: project?.endDate,
+      description: project?.description || source,
+    });
+  }
+
+  private normalizeParsedEducation(record: any) {
+    const source = [
+      record?.school,
+      record?.degree,
+      record?.major,
+      record?.description,
+    ]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .join(' ');
+    return {
+      ...record,
+      school: this.extractSchoolName(source) || record?.school,
+      degree: this.extractDegree(source) || record?.degree,
+      major: this.extractMajor(source) || record?.major,
+    };
+  }
+
+  private extractSchoolName(text: string) {
+    return this.matchFirst(text, [
+      /([\u4e00-\u9fa5A-Za-z\s·-]{0,40}?(?:大学|学院|学校|University|College))/i,
+    ]);
+  }
+
+  private extractDegree(text: string) {
+    return this.matchFirst(text, [
+      /(博士|硕士|研究生|本科|大专|专科|学士|Doctor|Master|Bachelor|MBA)/i,
+    ]);
+  }
+
+  private extractMajor(text: string) {
+    return this.matchFirst(text, [
+      /(?:专业|Major)[:：\s]*([^\n，,|]{2,40})/i,
+      /(计算机科学与技术|软件工程|电子信息工程|自动化|通信工程|电子工程|Computer Science|Software Engineering)/i,
+    ]);
   }
 
   private workToProjectExperience(work: any) {
@@ -1072,11 +1232,39 @@ export class AiService {
     return projects.filter((project) => {
       const name = String(project?.name || '').trim();
       if (!name) return false;
+      if (this.isBadProjectName(name)) return false;
       const key = name.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+  }
+
+  private isBadProjectName(name: string) {
+    return (
+      /^\d{1,3}$/.test(name) ||
+      this.isDateRangeLine(name) ||
+      /^(负责|实现|支持|开发|参与|主要|搭建|完成|涉及|使用|基于|通过)/.test(
+        name,
+      )
+    );
+  }
+
+  private dedupeEducation(records: any[]) {
+    const seen = new Set<string>();
+    return records
+      .map((record) => this.normalizeParsedEducation(record))
+      .filter((record) => {
+        const school = String(record?.school || '').trim();
+        if (!school) return false;
+        const key = `${school}|${record?.degree || ''}|${record?.major || ''}`
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
   }
 
   private isSparseParsedResume(data: any) {

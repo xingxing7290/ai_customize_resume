@@ -1,0 +1,11 @@
+{
+  "project": "ai_customize_resume",
+  "archive_sha256": "04b84afeb8771b839c1df63d7c58b5f88e0efb38fd573736d13c55748ef6f674",
+  "encrypted_sha256": "a1ac475dbe9f71adbd8bfe7809391f93d78f5aaacfca392d3fc40cfaefd737d5",
+  "encrypted_bytes": 4024188,
+  "file_entries": 540,
+  "git_heads": [
+    "4ef643964f02f2eec3cdc8e99e3933d14770beae",
+    "8693273dc96d43b4952d10f18a9a9fbe9ebc027d"
+  ]
+}
